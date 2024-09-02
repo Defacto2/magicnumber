@@ -45,6 +45,62 @@ const (
 	wmaFile    = "TEST.wma"
 )
 
+func ExampleArchive() {
+	f1, err := os.Open(filepath.Join("testdata", "TEST.cab"))
+	if err != nil {
+		panic(err)
+	}
+	defer f1.Close()
+	f2, err := os.Open(filepath.Join("testdata", "README.md"))
+	if err != nil {
+		panic(err)
+	}
+	defer f2.Close()
+
+	sign1, err := magicnumber.Archive(f1)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(sign1 == magicnumber.MicrosoftCABinet)
+
+	sign2, err := magicnumber.Archive(f2)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(sign2 == magicnumber.Unknown)
+	// Output: true
+	// true
+}
+
+func ExampleFind() {
+	f, err := os.Open(filepath.Join("testdata", "TEST.cab"))
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
+	sign := magicnumber.Find(f)
+	fmt.Println(sign.String())
+	fmt.Println(sign.Title())
+	// Output: Microsoft cabinet
+	// Microsoft Cabinet
+}
+
+func ExampleFindExecutable() {
+	f, err := os.Open(filepath.Join("testdata", "binaries", "windows9x", "7za920", "7za.exe"))
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
+	win, err := magicnumber.FindExecutable(f)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(win.String())
+	// Output: Windows NT v4.0
+}
+
 func uncompress(name string) string {
 	_, file, _, usable := runtime.Caller(0)
 	if !usable {
