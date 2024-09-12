@@ -100,7 +100,7 @@ func Document(r io.ReaderAt) (Signature, error) {
 	switch {
 	case Ansi(r):
 		return ANSIEscapeText, nil
-	case Txt(r):
+	case CodePage(r), Txt(r):
 		return PlainText, nil
 	default:
 		return Unknown, nil
@@ -189,7 +189,7 @@ func Text(r io.ReaderAt) (Signature, error) {
 	switch {
 	case Ansi(r):
 		return ANSIEscapeText, nil
-	case Txt(r):
+	case CodePage(r), Txt(r):
 		return PlainText, nil
 	default:
 		return Unknown, nil

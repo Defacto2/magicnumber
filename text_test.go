@@ -152,3 +152,22 @@ func TestByte(t *testing.T) {
 	b = byte('a')
 	assert.False(t, magicnumber.NonWindows1252(b))
 }
+
+func TestCodePage(t *testing.T) {
+	t.Parallel()
+	r, err := os.Open(tdfile("TRIAD.TXT"))
+	require.NoError(t, err)
+	defer r.Close()
+
+	assert.False(t, magicnumber.Txt(r))
+	assert.True(t, magicnumber.CodePage(r))
+
+	assert.Equal(t, magicnumber.PlainText, magicnumber.Find(r))
+	sign, err := magicnumber.Text(r)
+	require.NoError(t, err)
+	assert.Equal(t, magicnumber.PlainText, sign)
+	sign, err = magicnumber.Document(r)
+	require.NoError(t, err)
+	assert.Equal(t, magicnumber.PlainText, sign)
+
+}
