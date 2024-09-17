@@ -247,11 +247,11 @@ func IlbmDecode(r io.ReaderAt) (int, int) {
 	}
 	hw := hex.EncodeToString([]byte{p[0], p[1]})
 	hh := hex.EncodeToString([]byte{p[2], p[3]})
-	w, err := strconv.ParseInt(hw, 16, 64)
+	w, err := strconv.ParseInt(hw, 16, 32)
 	if err != nil {
 		return 0, 0
 	}
-	h, err := strconv.ParseInt(hh, 16, 64)
+	h, err := strconv.ParseInt(hh, 16, 32)
 	if err != nil {
 		return 0, 0
 	}

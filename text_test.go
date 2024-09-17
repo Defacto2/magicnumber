@@ -169,5 +169,4 @@ func TestCodePage(t *testing.T) {
 	sign, err = magicnumber.Document(r)
 	require.NoError(t, err)
 	assert.Equal(t, magicnumber.PlainText, sign)
-
 }
