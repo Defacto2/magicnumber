@@ -104,7 +104,7 @@ func ASCII(r io.ReaderAt) bool {
 // CodePage returns true if the reader contains is a possible IBM code page
 // text file that was often found on DOS and 16-bit Windows computers.
 //
-// This function is a heuristic and checks for the following:
+// This function is heuristic and checks for the following:
 //   - no multiple nulls before the EOF marker
 //   - require IBM PC/Microsoft newlines
 //   - number of newlines should be at least (80 columns / length of file) / halfed
@@ -113,6 +113,7 @@ func CodePage(r io.ReaderAt) bool {
 	msdosNL := []byte{0x0d, 0x0a}
 	size := Length(r)
 	const chunkSize = 1024
+	const binary, textfile = false, true
 	newlineCount := 0
 	buf := make([]byte, chunkSize)
 	for offset := int64(0); offset < size; offset += chunkSize {
@@ -122,10 +123,10 @@ func CodePage(r io.ReaderAt) bool {
 		}
 		n, err := r.ReadAt(buf[:bytesToRead], offset)
 		if err != nil && err != io.EOF {
-			return false
+			return binary
 		}
 		if pos := bytes.Index(buf[:n], nulpair); pos != -1 {
-			return true
+			return binary
 		}
 		newlineCount += bytes.Count(buf[:n], msdosNL)
 		if err == io.EOF {
@@ -136,7 +137,7 @@ func CodePage(r io.ReaderAt) bool {
 	if size > columns {
 		return int64(newlineCount) >= (size/columns)/2
 	}
-	return true
+	return textfile
 }
 
 // Ansi returns true if the reader contains some common ANSI escape codes.
