@@ -140,6 +140,45 @@ func CodePage(r io.ReaderAt) bool {
 	return textfile
 }
 
+// CSI returns true if the reader contains three or more common Control Sequence Introducer (CSI) escape codes
+// that are used in ANSI encoded texts. This is a heuristic function and does not guarantee that the reader
+// contains ANSI encoded text.
+func CSI(r io.ReaderAt) bool {
+	const esc, leftBracket = 0x1b, 0x5b
+	const minRequired = 3
+	csi := []byte{esc, leftBracket, 0x0}
+	codes := []rune{'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'J', 'K', '=', 's', 'u', '#'}
+	finds := 0
+	size := Length(r)
+	const chunkSize = 1024
+	buf := make([]byte, chunkSize)
+	for offset := int64(0); offset < size; offset += chunkSize {
+		bytesToRead := chunkSize
+		if offset+int64(chunkSize) > size {
+			bytesToRead = int(size - offset)
+		}
+		n, err := r.ReadAt(buf[:bytesToRead], offset)
+		if err != nil && err != io.EOF {
+			return false
+		}
+		for _, c := range codes {
+			if finds >= minRequired {
+				return true
+			}
+			csi[2] = byte(c)
+			if pos := bytes.Index(buf[:n], csi); pos > -1 {
+				finds++
+				continue
+			}
+		}
+		if err == io.EOF {
+			break
+		}
+	}
+	return false
+
+}
+
 // Ansi returns true if the reader contains some common ANSI escape codes.
 // It for speed and to avoid false positives it only matches the ANSI escape codes
 // for bold, normal and reset text.
@@ -151,16 +190,6 @@ func Ansi(r io.ReaderAt) bool {
 		bold   = []byte{esc, '[', '1', ';'}
 		normal = []byte{esc, '[', '0', ';'}
 	)
-	// check the first 8 bytes for the usual starter ANSI escape codes
-	// const pSize = 8
-	// p := make([]byte, pSize)
-	// sr := io.NewSectionReader(r, 0, pSize)
-	// if _, err := sr.Read(p); err == nil {
-	// 	check := append(reset, clear...)
-	// 	if !bytes.Equal(p, check) {
-	// 		return false
-	// 	}
-	// }
 	// check for the common ANSI escape codes
 	size := Length(r)
 	const chunkSize = 1024

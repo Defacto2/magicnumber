@@ -100,6 +100,52 @@ func TestANSI(t *testing.T) {
 	assert.False(t, magicnumber.Ansi(nr))
 }
 
+func TestCSI(t *testing.T) {
+	t.Parallel()
+	r, err := os.Open(uncompress(ansiFile))
+	require.NoError(t, err)
+	defer r.Close()
+	assert.True(t, magicnumber.CSI(r))
+	assert.Equal(t, magicnumber.ANSIEscapeText, magicnumber.Find(r))
+	sign, err := magicnumber.Text(r)
+	require.NoError(t, err)
+	assert.Equal(t, magicnumber.ANSIEscapeText, sign)
+	sign, err = magicnumber.Document(r)
+	require.NoError(t, err)
+	assert.Equal(t, magicnumber.ANSIEscapeText, sign)
+
+	r, err = os.Open(uncompress(txtFile))
+	require.NoError(t, err)
+	defer r.Close()
+	assert.False(t, magicnumber.CSI(r))
+	assert.Equal(t, magicnumber.PlainText, magicnumber.Find(r))
+
+	r, err = os.Open(uncompress(gifFile))
+	require.NoError(t, err)
+	defer r.Close()
+	assert.False(t, magicnumber.CSI(r))
+
+	r, err = os.Open(uncompress(badFile))
+	require.NoError(t, err)
+	defer r.Close()
+	assert.False(t, magicnumber.CSI(r))
+	assert.Equal(t, magicnumber.PlainText, magicnumber.Find(r))
+
+	s := "ANSI \x1b[2Jtext"
+	nr := strings.NewReader(s)
+	assert.False(t, magicnumber.CSI(nr))
+	s = "ANSI \x1b[0;text"
+	nr = strings.NewReader(s)
+	assert.False(t, magicnumber.CSI(nr))
+	s = "ANSI \x1b[1;t\x1b[2Je\x1b[0;xt"
+	nr = strings.NewReader(s)
+	assert.True(t, magicnumber.CSI(nr))
+
+	s = "ANSI \x1btext"
+	nr = strings.NewReader(s)
+	assert.False(t, magicnumber.CSI(nr))
+}
+
 func TestRTF(t *testing.T) {
 	t.Parallel()
 	r, err := os.Open(uncompress(rtfFile))
