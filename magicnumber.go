@@ -6,9 +6,6 @@
 // Usually, the magic number is the first few bytes of a file that uniquely identify the file type.
 // But a number of document formats also check the final few bytes of a file.
 //
-// At a later stage, the magic number matchers will be used to extract metadata from files
-// and support for module tracking music files will be added.
-//
 // The sources for the magic numbers byte values are from the following:
 //   - [Gary Kessler's File Signatures Table]
 //   - [Just Solve the File Format Problem]

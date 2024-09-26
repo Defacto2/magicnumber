@@ -61,15 +61,15 @@ func ExampleArchive() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(sign1 == magicnumber.MicrosoftCABinet)
+	fmt.Println(sign1)
 
 	sign2, err := magicnumber.Archive(f2)
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(sign2 == magicnumber.Unknown)
-	// Output: true
-	// true
+	fmt.Println(sign2)
+	// Output: Microsoft cabinet
+	// binary data
 }
 
 func ExampleFind() {
