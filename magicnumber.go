@@ -469,7 +469,9 @@ func Find(r io.ReaderAt) Signature {
 	switch {
 	case Ansi(r):
 		return ANSIEscapeText
-	case CodePage(r), Txt(r):
+	case
+		CodePage(r),
+		Txt(r):
 		return PlainText
 	default:
 		return Unknown

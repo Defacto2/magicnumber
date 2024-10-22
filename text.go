@@ -307,10 +307,14 @@ func Rtf(r io.ReaderAt) bool {
 
 // Txt returns true if the reader exclusively contains plain text ASCII characters,
 // control characters or "extended ASCII characters".
+//
+// There is a 2% threshold for non-plain text characters such as ASCII control characters
+// which are not printable but often found in plain text files for 8-bit microcomputers.
 func Txt(r io.ReaderAt) bool {
+	const chunkSize, percentage = 1024, 0.02
 	size := Length(r)
-	const chunkSize = 1024
 	buf := make([]byte, chunkSize)
+	nonPlainText := 0
 	for offset := int64(0); offset < size; offset += chunkSize {
 		bytesToRead := chunkSize
 		if offset+int64(chunkSize) > size {
@@ -322,14 +326,18 @@ func Txt(r io.ReaderAt) bool {
 		}
 		for i := range n {
 			if NotPlainText(buf[i]) {
-				return false
+				nonPlainText++
+				if float64(nonPlainText)/float64(size) < percentage {
+					return false
+				}
 			}
 		}
 		if err == io.EOF {
 			break
 		}
 	}
-	return true
+	// if nonPlainText is greater than 2% of the file, then it is not plain text
+	return float64(nonPlainText)/float64(size) < percentage
 }
 
 // TxtLatin1 returns true if the reader exclusively contains plain text ISO/IEC-8895-1 characters,
