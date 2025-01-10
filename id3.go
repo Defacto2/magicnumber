@@ -248,8 +248,19 @@ func id3Frame(frameID []byte, header, size int, data ...byte) string {
 	sizeIndex := offset + size
 	sizeData := data[sizeIndex : sizeIndex+size]
 	length := ConvSize(sizeData)
-	b := bytes.Trim(data[offset+header:int64(offset+header)+length], nul)
-	s, _ := ConvLatin1(b)
+	x := offset + header
+	y := int64(x) + length
+	l := len(data) - 1
+	var p = []byte{}
+	switch {
+	case x > l:
+		return ""
+	case y > int64(l):
+		p = data[x:]
+	default:
+		p = data[x:y]
+	}
+	s, _ := ConvLatin1(bytes.Trim(p, nul))
 	return strings.TrimSpace(s)
 }
 
