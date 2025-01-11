@@ -260,8 +260,8 @@ func Default() Windows {
 // for example, a Windows 3.0 requirement would return 3 and 0.
 func NE(p []byte) Windows {
 	none := Default()
-	const min = 64
-	if len(p) < min {
+	const minimum = 64
+	if len(p) < minimum {
 		return none
 	}
 	if p[0] != 'M' || p[1] != 'Z' {
@@ -307,8 +307,8 @@ func NE(p []byte) Windows {
 // [Portable Executable format]: https://learn.microsoft.com/en-us/windows/win32/debug/pe-format
 func PE(p []byte) Windows {
 	none := Default()
-	const min = 64
-	if len(p) < min {
+	const minimum = 64
+	if len(p) < minimum {
 		return none
 	}
 	if p[0] != 'M' || p[1] != 'Z' {
@@ -331,31 +331,19 @@ func PE(p []byte) Windows {
 	if len(p) < int(coffHeaderIndex)+coffLen {
 		return none
 	}
-	machine := [2]byte{
-		p[coffHeaderIndex],
-		p[coffHeaderIndex+1],
-	}
+	machine := [2]byte{p[coffHeaderIndex], p[coffHeaderIndex+1]}
 	timeDateStamp := binary.LittleEndian.Uint32(p[coffHeaderIndex+4:])
 	compiled := time.Unix(int64(timeDateStamp), 0)
 
 	optionalHeaderIndex := coffHeaderIndex + coffLen
-	magic := [2]byte{
-		p[optionalHeaderIndex+0],
-		p[optionalHeaderIndex+1],
-	}
+	magic := [2]byte{p[optionalHeaderIndex+0], p[optionalHeaderIndex+1]}
 
 	const winMajorOffset = 40 // the location of the Windows major version
 	const winMinorOffset = 42 // the location of the Windows minor version
 	major := optionalHeaderIndex + winMajorOffset
-	osMajorB := []byte{
-		p[major+0],
-		p[major+1],
-	}
+	osMajorB := []byte{p[major+0], p[major+1]}
 	minor := optionalHeaderIndex + winMinorOffset
-	osMinorB := []byte{
-		p[minor+0],
-		p[minor+1],
-	}
+	osMinorB := []byte{p[minor+0], p[minor+1]}
 	osMajor := int(binary.LittleEndian.Uint16(osMajorB))
 	osMinor := int(binary.LittleEndian.Uint16(osMinorB))
 	w := Windows{

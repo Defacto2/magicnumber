@@ -118,6 +118,10 @@ func pkzip(r io.ReaderAt) pkComp {
 	//
 	// compression method              2 bytes
 	compresionMethod := p[8] + p[9]
+	return pkMethod(compresionMethod)
+}
+
+func pkMethod(compresionMethod byte) pkComp {
 	const (
 		store       = 0x0
 		shrink      = 0x1

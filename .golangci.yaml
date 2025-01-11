@@ -20,10 +20,10 @@ linters:
   # Disable specific linters.
   disable:
     # deprecated
-    - gomnd
-    - execinquery
+    - exportloopref
     # disabled
     - depguard # imports are in a list of acceptable packages.
+    - dupl # duplicates are allowed in tests.
     - exhaustive # checks exhaustiveness of enum switch statements.
     - exhaustruct # finds structures with uninitialized fields.
     - ireturn # conflicts with sqlboiler.
@@ -31,8 +31,6 @@ linters:
     - paralleltest # requires a lot of refactoring.
     - varnamelen # a popular linter but is not idiomatic.
     - wsl # fussy over whitespace.
-    # temporary disabled
-    #- godox
 linters-settings:
   cyclop:
     # The maximal code complexity to report.

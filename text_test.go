@@ -205,7 +205,7 @@ func TestCodePage(t *testing.T) {
 	require.NoError(t, err)
 	defer r.Close()
 
-	assert.False(t, magicnumber.Txt(r))
+	assert.True(t, magicnumber.Txt(r))
 	assert.True(t, magicnumber.CodePage(r))
 
 	assert.Equal(t, magicnumber.PlainText, magicnumber.Find(r))

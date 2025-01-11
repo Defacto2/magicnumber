@@ -251,7 +251,7 @@ func id3Frame(frameID []byte, header, size int, data ...byte) string {
 	x := offset + header
 	y := int64(x) + length
 	l := len(data) - 1
-	var p = []byte{}
+	var p []byte
 	switch {
 	case x > l:
 		return ""

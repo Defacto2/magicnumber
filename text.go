@@ -176,7 +176,6 @@ func CSI(r io.ReaderAt) bool {
 		}
 	}
 	return false
-
 }
 
 // Ansi returns true if the reader contains some common ANSI escape codes.
@@ -185,10 +184,10 @@ func CSI(r io.ReaderAt) bool {
 func Ansi(r io.ReaderAt) bool {
 	const esc = 0x1b
 	var (
-		reset  = []byte{esc, '[', '0', 'm'}
-		clear  = []byte{esc, '[', '2', 'J'}
-		bold   = []byte{esc, '[', '1', ';'}
-		normal = []byte{esc, '[', '0', ';'}
+		reset   = []byte{esc, '[', '0', 'm'}
+		restart = []byte{esc, '[', '2', 'J'}
+		bold    = []byte{esc, '[', '1', ';'}
+		normal  = []byte{esc, '[', '0', ';'}
 	)
 	// check for the common ANSI escape codes
 	size := Length(r)
@@ -207,7 +206,7 @@ func Ansi(r io.ReaderAt) bool {
 		if pos := bytes.Index(buf[:n], reset); pos != -1 {
 			return true
 		}
-		if pos := bytes.Index(buf[:n], clear); pos != -1 {
+		if pos := bytes.Index(buf[:n], restart); pos != -1 {
 			return true
 		}
 		if pos := bytes.Index(buf[:n], bold); pos != -1 {
