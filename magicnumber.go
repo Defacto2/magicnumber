@@ -443,12 +443,13 @@ func MatchExt(filename string, r io.ReaderAt) (bool, Signature, error) {
 	}
 	ext := strings.ToLower(filepath.Ext(filename))
 	finds := New()
-	for extSign, exts := range Ext() {
-		if slices.Contains(exts, ext) {
-			for findSign, matcher := range finds {
-				if matcher(r) && findSign == extSign {
-					return true, findSign, nil
-				}
+	for signature, exts := range Ext() {
+		if !slices.Contains(exts, ext) {
+			continue
+		}
+		for find, matcher := range finds {
+			if matcher(r) && find == signature {
+				return true, find, nil
 			}
 		}
 	}
