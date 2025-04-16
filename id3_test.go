@@ -21,7 +21,7 @@ func TestMusicID3v1(t *testing.T) {
 	require.NoError(t, err)
 	defer r.Close()
 	assert.Equal(t, "Title by Artist (2003)", magicnumber.MusicID3v1(r))
-	assert.Equal(t, "", magicnumber.MusicID3v2(r))
+	assert.Empty(t, magicnumber.MusicID3v2(r))
 }
 
 func TestMusicID3v2(t *testing.T) {
@@ -30,7 +30,7 @@ func TestMusicID3v2(t *testing.T) {
 	r, err := os.Open(mp3file(IDv2File))
 	require.NoError(t, err)
 	defer r.Close()
-	assert.Equal(t, "", magicnumber.MusicID3v1(r))
+	assert.Empty(t, magicnumber.MusicID3v1(r))
 	assert.Equal(t, "Title by Artist (2003)", magicnumber.MusicID3v2(r))
 }
 

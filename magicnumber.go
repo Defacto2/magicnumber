@@ -273,8 +273,8 @@ func (sign Signature) Title() string { //nolint:funlen
 type Extension map[Signature][]string
 
 // Ext returns a map of file type signatures to common file extensions.
-func Ext() Extension { //nolint:funlen
-	return Extension{
+func Ext() *Extension { //nolint:funlen
+	exts := Extension{
 		ElectronicArtsIFF:                 []string{".iff"},
 		AV1ImageFile:                      []string{".avif"},
 		JPEGFileInterchangeFormat:         []string{".jpg", ".jpeg"},
@@ -345,6 +345,7 @@ func Ext() Extension { //nolint:funlen
 		ANSIEscapeText:                    []string{".ans"},
 		PlainText:                         []string{".txt"},
 	}
+	return &exts
 }
 
 // Matcher is a function that matches a byte slice to a file type.
@@ -357,8 +358,8 @@ type Finder map[Signature]Matcher
 //
 // ANSIEscapeText and PlainText are not included as they need to be
 // checked separately and in a specific order.
-func New() Finder { //nolint:funlen
-	return Finder{
+func New() *Finder { //nolint:funlen
+	finds := Finder{
 		ElectronicArtsIFF:                 Iff,
 		AV1ImageFile:                      Avif,
 		JPEGFileInterchangeFormat:         Jpeg,
@@ -427,6 +428,7 @@ func New() Finder { //nolint:funlen
 		UTF16Text:                         Utf16,
 		UTF32Text:                         Utf32,
 	}
+	return &finds
 }
 
 // MatchExt determines if the reader matches the file type signature expected
@@ -443,11 +445,11 @@ func MatchExt(filename string, r io.ReaderAt) (bool, Signature, error) {
 	}
 	ext := strings.ToLower(filepath.Ext(filename))
 	finds := New()
-	for signature, exts := range Ext() {
+	for signature, exts := range *Ext() {
 		if !slices.Contains(exts, ext) {
 			continue
 		}
-		for find, matcher := range finds {
+		for find, matcher := range *finds {
 			if matcher(r) && find == signature {
 				return true, find, nil
 			}
@@ -461,7 +463,7 @@ func Find(r io.ReaderAt) Signature {
 	if Empty(r) {
 		return ZeroByte
 	}
-	matchers := New()
+	matchers := *New()
 	for sign, matcher := range matchers {
 		if matcher(r) {
 			return sign

@@ -97,10 +97,10 @@ func (w Windows) String() string {
 		WindowsNTv3 = 3
 		WindowsNT   = 4
 	)
-	switch {
-	case w.NE == DOSv4Exe, w.NE == OS2Exe:
+	switch w.NE {
+	case DOSv4Exe, OS2Exe:
 		return fmt.Sprintf("%s v%d.%d", w.NE, w.Major, w.Minor)
-	case w.NE == UnknownNE:
+	case UnknownNE:
 		return "Unknown NE executable"
 	}
 	switch {

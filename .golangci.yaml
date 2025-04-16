@@ -1,53 +1,56 @@
-# .golangci.yaml
-# Configure the golangci-lint linter that analyzes source code to flag programming errors,
-# bugs, stylistic errors, and suspicious constructs.
-# https://golangci-lint.run/
-#
-# To run the linter use either of the following commands:
-# $ task lint
-# $ golangci-lint run
-#
-issues:
-  exclude-rules:
-    - path: _test\.go$
-      linters: # Tests are allowed to be longer and don't need error wrapping.
-        - dupword
-        - funlen
-        - gocyclo
+version: "2"
 linters:
-  enable-all: true
-  fast: false
-  # Disable specific linters.
+  default: all
   disable:
-    # deprecated
-    - tenv
-    # disabled
-    - depguard # imports are in a list of acceptable packages.
-    - dupl # duplicates are allowed in tests.
-    - exhaustive # checks exhaustiveness of enum switch statements.
-    - exhaustruct # finds structures with uninitialized fields.
-    - ireturn # conflicts with sqlboiler.
-    - nlreturn # fussy over whitespace.
-    - paralleltest # requires a lot of refactoring.
-    - varnamelen # a popular linter but is not idiomatic.
-    - wsl # fussy over whitespace.
-linters-settings:
-  cyclop:
-    # The maximal code complexity to report.
-    # Default: 10
-    max-complexity: 17
-    skip-tests: true
-  funlen:
-    # Maximum function length in lines.
-    # Default: 50
-    lines: 60
-    statements: 45
-    ignore-comments: true
-  misspell:
-    # Correct spellings using locale preferences for US or UK.
-    # Setting locale to US will correct the British spelling of 'colour' to 'color'.
-    # Default is to use a neutral variety of English.
-    locale: US
-    # Default: []
-    ignore-words:
-      - "freedos"
+    - depguard
+    - dupl
+    - exhaustive
+    - exhaustruct
+    - ireturn
+    - nlreturn
+    - paralleltest
+    - varnamelen
+    - wsl
+  settings:
+    cyclop:
+      max-complexity: 17
+    funlen:
+      lines: 60
+      statements: 45
+      ignore-comments: true
+    misspell:
+      locale: US
+      ignore-rules:
+        - freedos
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - dupword
+          - funlen
+          - gocyclo
+        path: _test\.go$
+      - linters:
+          - cyclop
+        path: (.+)_test\.go
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

@@ -69,7 +69,7 @@ func NonWindows1252(b byte) bool {
 		unused9d      = 0x9d
 	)
 	ExtraTypography := b != unused81 && b != unused8d && b != unused8f && b != unused90 && b != unused9d
-	return !(b >= extendedBegin && b <= extendedEnd && ExtraTypography)
+	return b < extendedBegin || b > extendedEnd || !ExtraTypography
 }
 
 // ASCII returns true if the reader exclusively contains printable ASCII characters.

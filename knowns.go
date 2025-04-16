@@ -7,7 +7,7 @@ import (
 // Archive reads all the bytes from the reader and returns the file type signature if
 // the file is a known archive of files or Unknown if the file is not an archive.
 func Archive(r io.ReaderAt) (Signature, error) {
-	find := New()
+	find := *New()
 	for _, archive := range Archives() {
 		if finder, exists := find[archive]; exists {
 			if finder(r) {
@@ -49,7 +49,7 @@ func Archives() []Signature {
 // DiscImage reads all the bytes from the reader and returns the file type signature if
 // the file is a known CD disk image or Unknown if the file is not a disk image.
 func DiscImage(r io.ReaderAt) (Signature, error) {
-	find := New()
+	find := *New()
 	for _, img := range DiscImages() {
 		if finder, exists := find[img]; exists {
 			if finder(r) {
@@ -89,7 +89,7 @@ func ArchivesBBS() []Signature {
 // Document reads all the bytes from the reader and returns the file type signature if
 // the file is a known document or Unknown if the file is not a document.
 func Document(r io.ReaderAt) (Signature, error) {
-	find := New()
+	find := *New()
 	for _, doc := range Documents() {
 		if finder, exists := find[doc]; exists {
 			if finder(r) {
@@ -121,7 +121,7 @@ func Documents() []Signature {
 // Image reads all the bytes from the reader and returns the file type signature if
 // the file is a known image or Unknown if the file is not an image.
 func Image(r io.ReaderAt) (Signature, error) {
-	find := New()
+	find := *New()
 	for _, img := range Images() {
 		if finder, exists := find[img]; exists {
 			if finder(r) {
@@ -153,7 +153,7 @@ func Images() []Signature {
 // Program reads all the bytes from the reader and returns the file type signature if
 // the file is a known DOS or Windows program or Unknown if the file is not a program.
 func Program(r io.ReaderAt) (Signature, error) {
-	find := New()
+	find := *New()
 	for _, app := range Programs() {
 		if finder, exists := find[app]; exists {
 			if finder(r) {
@@ -178,7 +178,7 @@ func Programs() []Signature {
 // Text reads the first 512 bytes from the reader and returns the file type signature if
 // the file is a known plain text file or Unknown if the file is not a text file.
 func Text(r io.ReaderAt) (Signature, error) {
-	find := New()
+	find := *New()
 	for _, doc := range Texts() {
 		if finder, exists := find[doc]; exists {
 			if finder(r) {
@@ -210,7 +210,7 @@ func Texts() []Signature {
 // Video reads all the bytes from the reader and returns the file type signature if
 // the file is a known video or Unknown if the file is not a video.
 func Video(r io.ReaderAt) (Signature, error) {
-	find := New()
+	find := *New()
 	for _, vid := range Videos() {
 		if finder, exists := find[vid]; exists {
 			if finder(r) {
