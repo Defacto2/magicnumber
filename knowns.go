@@ -70,7 +70,7 @@ func DiscImages() []Signature {
 	}
 }
 
-// Archives returns all the archive file type signatures that were
+// ArchivesBBS returns all the archive file type signatures that were
 // commonly used in the BBS online era of the 1980s and early 1990s.
 // Eventually these were replaced by the universal ZIP format using
 // the Deflate and Store compression methods.

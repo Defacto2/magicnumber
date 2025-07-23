@@ -107,7 +107,7 @@ func ASCII(r io.ReaderAt) bool {
 // This function is heuristic and checks for the following:
 //   - no multiple nulls before the EOF marker
 //   - require IBM PC/Microsoft newlines
-//   - number of newlines should be at least (80 columns / length of file) / halfed
+//   - number of newlines should be at least (80 columns / length of file) / halved
 func CodePage(r io.ReaderAt) bool {
 	nulpair := []byte{0x0, 0x0}
 	msdosNL := []byte{0x0d, 0x0a}
@@ -338,7 +338,7 @@ func Txt(r io.ReaderAt) bool {
 	return threshold(nonPlainText, size)
 }
 
-// If count is greater than 2% of the filesize, then it is not plain text.
+// If count is greater than 2% of the file size, then it is not plain text.
 func threshold(count int, size int64) bool {
 	const percentage = 0.02
 	return float64(count)/float64(size) < percentage

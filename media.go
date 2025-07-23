@@ -1,6 +1,6 @@
 package magicnumber
 
-// Package file media.go contains the functions that parse bytes as commom image, digital audio and video formats.
+// Package file media.go contains the functions that parse bytes as common image, digital audio and video formats.
 // A number of these media containers could support multiple modes,
 // such as audio only, audio+video, video only, static images, animated images, etc.
 

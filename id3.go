@@ -275,7 +275,7 @@ func ConvLatin1(p []byte) (string, error) {
 }
 
 // ConvSize converts a byte slice to an integer.
-// The byte slice is a synchsafe integer, which is a 7-bit integer.
+// The byte slice is a synch-safe integer, which is a 7-bit integer.
 func ConvSize(p []byte) int64 {
 	const synchSafeSizeBase = 7
 	sizeBase := uint(synchSafeSizeBase)

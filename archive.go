@@ -80,7 +80,7 @@ const (
 
 // pkzip matches the PKWARE Zip archive format.
 // This is the most common ZIP format and is widely supported and has been
-// tested against many discountinued and legacy ZIP methods and packagers.
+// tested against many discontinued and legacy ZIP methods and packagers.
 //
 // Due to the complex history of the ZIP format, 4 possible return values
 // maybe returned.

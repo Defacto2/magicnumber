@@ -40,7 +40,7 @@ func MK(r io.ReaderAt) bool {
 	return MusicMK(r) != ""
 }
 
-// MusicMod returns the tracked music format in the byte slice and
+// MusicTracker returns the tracked music format in the byte slice and
 // the name or title of the song if available.
 // The tracked music formats include MultiTracker, Impulse Tracker,
 // Extended Module, and 4 channel MODule music.

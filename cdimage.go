@@ -18,7 +18,7 @@ func Daa(r io.ReaderAt) bool {
 	return bytes.Equal(p, []byte{'D', 'A', 'A', 0x0, 0x0, 0x0, 0x0, 0x0})
 }
 
-// ISO returns true if the reader contains the ISO 9660 CD-ROM filesystem signature.
+// ISO returns true if the reader contains the ISO 9660 CD-ROM file-system signature.
 // To be accurate, it requires at least 36KB of data to be read.
 func ISO(r io.ReaderAt) bool {
 	const size = 5

@@ -57,3 +57,4 @@ tasks:
     desc: "Run the test suite with the slower race detection."
     cmds:
       - go test -count 1 -race ./...
+

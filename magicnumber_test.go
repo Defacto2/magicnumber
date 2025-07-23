@@ -5,12 +5,12 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 
 	"github.com/Defacto2/magicnumber"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/nalgeon/be"
 )
 
 const (
@@ -147,28 +147,25 @@ func TestUnknowns(t *testing.T) {
 	data := "some binary data"
 	nr := strings.NewReader(data)
 	sign, err := magicnumber.Archive(nr)
-	require.NoError(t, err)
-	assert.Equal(t, magicnumber.Unknown, sign)
-	assert.Equal(t, "binary data", sign.String())
-	assert.Equal(t, "Binary data", sign.Title())
+	be.Err(t, err, nil)
+	be.Equal(t, magicnumber.Unknown, sign)
+	be.Equal(t, "binary data", sign.String())
+	be.Equal(t, "Binary data", sign.Title())
 
 	b, sign, err := magicnumber.MatchExt(emptyFile, nr)
-	require.NoError(t, err)
-	assert.False(t, b)
-	assert.Equal(t, magicnumber.PlainText, sign)
+	be.Err(t, err, nil)
+	be.True(t, !b)
+	be.Equal(t, magicnumber.PlainText, sign)
 
 	r, err := os.Open(uncompress(emptyFile))
-	require.NoError(t, err)
+	be.Err(t, err, nil)
 	defer r.Close()
 	sign = magicnumber.Find(r)
-	assert.Equal(t, magicnumber.ZeroByte, sign)
+	be.Equal(t, magicnumber.ZeroByte, sign)
 }
 
 func TestFind(t *testing.T) {
 	t.Parallel()
-	prob := func(ext, path string) string {
-		return fmt.Sprintf("ext: %s, path: %s", ext, path)
-	}
 	// walk the assets directory
 	err := filepath.Walk(tdfile(""), func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -186,11 +183,11 @@ func TestFind(t *testing.T) {
 			}
 		}
 		f, err := os.Open(path)
-		require.NoError(t, err)
+		be.Err(t, err, nil)
 		defer f.Close()
 		sign := magicnumber.Find(f)
 		if base == "τεχτƒιℓε.τχτ" {
-			assert.Equal(t, magicnumber.PlainText, sign, prob(ext, path))
+			be.Equal(t, magicnumber.PlainText, sign)
 			return nil
 		}
 
@@ -199,71 +196,72 @@ func TestFind(t *testing.T) {
 			// do not test as it returns different results based on the file
 			return nil
 		case ".7Z":
-			assert.Equal(t, magicnumber.X7zCompressArchive, sign, prob(ext, path))
+			be.Equal(t, magicnumber.X7zCompressArchive, sign)
 		case ".ANS":
-			assert.Equal(t, magicnumber.ANSIEscapeText, sign, prob(ext, path))
+			be.Equal(t, magicnumber.ANSIEscapeText, sign)
 		case ".ARC":
 			// two different signatures used for the same file extension
-			assert.Contains(t, []magicnumber.Signature{
-				magicnumber.FreeArc,
-				magicnumber.ARChiveSEA,
-			}, sign, prob(ext, path))
+			be.True(t, slices.Contains([]magicnumber.Signature{
+				magicnumber.FreeArc, magicnumber.ARChiveSEA,
+			}, sign))
 		case ".ARJ":
-			assert.Equal(t, magicnumber.ArchiveRobertJung, sign, prob(ext, path))
+			be.Equal(t, magicnumber.ArchiveRobertJung, sign)
 		case ".AVIF":
-			assert.Equal(t, magicnumber.AV1ImageFile, sign, prob(ext, path))
+			be.Equal(t, magicnumber.AV1ImageFile, sign)
 		case ".BAT", ".INI", ".CUE":
-			assert.Equal(t, magicnumber.PlainText, sign, prob(ext, path))
+			be.Equal(t, magicnumber.PlainText, sign)
 		case ".BMP":
-			assert.Equal(t, magicnumber.BMPFileFormat, sign, prob(ext, path))
+			be.Equal(t, magicnumber.BMPFileFormat, sign)
 		case ".BZ2":
-			assert.Equal(t, magicnumber.Bzip2CompressArchive, sign, prob(ext, path))
+			be.Equal(t, magicnumber.Bzip2CompressArchive, sign)
 		case ".CHM", ".HLP":
-			assert.Equal(t, magicnumber.WindowsHelpFile, sign, prob(ext, path))
+			be.Equal(t, magicnumber.WindowsHelpFile, sign)
 		case ".DAA":
-			assert.Equal(t, magicnumber.CDPowerISO, sign, prob(ext, path))
+			be.Equal(t, magicnumber.CDPowerISO, sign)
 		case ".EXE", ".DLL":
-			assert.Equal(t, magicnumber.MicrosoftExecutable, sign, prob(ext, path))
+			be.Equal(t, magicnumber.MicrosoftExecutable, sign)
 		case ".GIF":
-			assert.Equal(t, magicnumber.GraphicsInterchangeFormat, sign, prob(ext, path))
+			be.Equal(t, magicnumber.GraphicsInterchangeFormat, sign)
 		case ".GZ":
-			assert.Equal(t, magicnumber.GzipCompressArchive, sign, prob(ext, path))
+			be.Equal(t, magicnumber.GzipCompressArchive, sign)
 		case ".JPG", ".JPEG":
-			assert.Equal(t, magicnumber.JPEGFileInterchangeFormat, sign, prob(ext, path))
+			be.Equal(t, magicnumber.JPEGFileInterchangeFormat, sign)
 		case ".ICO":
-			assert.Equal(t, magicnumber.MicrosoftIcon, sign, prob(ext, path))
+			be.Equal(t, magicnumber.MicrosoftIcon, sign)
 		case ".IFF":
-			assert.Equal(t, magicnumber.InterleavedBitmap, sign, prob(ext, path))
+			be.Equal(t, magicnumber.InterleavedBitmap, sign)
 		case ".ISO":
-			assert.Equal(t, magicnumber.CDISO9660, sign, prob(ext, path))
+			be.Equal(t, magicnumber.CDISO9660, sign)
 		case ".LZH":
-			assert.Equal(t, magicnumber.YoshiLHA, sign, prob(ext, path))
+			be.Equal(t, magicnumber.YoshiLHA, sign)
 		case ".MP3":
 			// do not test as it returns different results based on the file's ID3 tag
 			return nil
 		case ".PCX":
-			assert.Equal(t, magicnumber.PersonalComputereXchange, sign, prob(ext, path))
+			be.Equal(t, magicnumber.PersonalComputereXchange, sign)
 		case ".PNG":
-			assert.Equal(t, magicnumber.PortableNetworkGraphics, sign, prob(ext, path))
+			be.Equal(t, magicnumber.PortableNetworkGraphics, sign)
 		case ".RAR":
-			assert.Contains(t, []magicnumber.Signature{
+			signs := []magicnumber.Signature{
 				magicnumber.RoshalARchivev5,
 				magicnumber.RoshalARchive,
-			}, sign, prob(ext, path))
+			}
+			be.True(t, slices.Contains(signs, sign))
 		case ".TAR":
-			assert.Equal(t, magicnumber.TapeARchive, sign, prob(ext, path))
+			be.Equal(t, magicnumber.TapeARchive, sign)
 		case ".TXT", ".MD", ".NFO", ".ME", ".DIZ", ".ASC", ".CAP", ".DOC":
-			assert.Contains(t, []magicnumber.Signature{
+			signs := []magicnumber.Signature{
 				magicnumber.PlainText,
 				magicnumber.UTF16Text,
-			}, sign, prob(ext, path))
+			}
+			be.True(t, slices.Contains(signs, sign))
 		case ".WEBP":
-			assert.Equal(t, magicnumber.GoogleWebP, sign, prob(ext, path))
+			be.Equal(t, magicnumber.GoogleWebP, sign)
 		case ".XZ":
-			assert.Equal(t, magicnumber.XZCompressArchive, sign, prob(ext, path))
+			be.Equal(t, magicnumber.XZCompressArchive, sign)
 		case ".ZIP":
 			if base == "EMPTY.ZIP" {
-				assert.Equal(t, magicnumber.ZeroByte, sign, prob(ext, path))
+				be.Equal(t, magicnumber.ZeroByte, sign)
 				return nil
 			}
 			zips := []magicnumber.Signature{
@@ -273,13 +271,13 @@ func TestFind(t *testing.T) {
 				magicnumber.PKWAREZipReduce,
 				magicnumber.PKWAREZipShrink,
 			}
-			assert.Contains(t, zips, sign, prob(ext, path))
+			be.True(t, slices.Contains(zips, sign))
 		default:
-			assert.NotEqual(t, magicnumber.Unknown, sign, prob(ext, path))
+			be.True(t, magicnumber.Unknown != sign)
 			fmt.Fprintln(os.Stderr, ext, filepath.Base(path), fmt.Sprint(sign))
 		}
 
 		return nil
 	})
-	require.NoError(t, err)
+	be.Err(t, err, nil)
 }
