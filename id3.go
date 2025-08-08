@@ -246,6 +246,9 @@ func id3Frame(frameID []byte, header, size int, data ...byte) string {
 		return ""
 	}
 	sizeIndex := offset + size
+	if sizeIndex+size > len(data) || sizeIndex < 0 {
+		return ""
+	}
 	sizeData := data[sizeIndex : sizeIndex+size]
 	length := ConvSize(sizeData)
 	x := offset + header

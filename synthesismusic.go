@@ -158,8 +158,8 @@ func MusicXM(r io.ReaderAt) string {
 
 // MusicMK returns the MOD song or title in the byte slice if available.
 // The Soundtracker MOD format is a tracked music format created by Karsten Obarski on the Commodore Amiga.
-// The original MOD format had no signature, but the M.K. signature was added by Mahoney & Kaktus
-// in their MOD samples and became a common signature in the MOD format.
+// The original MOD format had no signatures. However, Mahoney & Kaktus later used a 'M.K.' signature
+// with their sound samples and it got adopted as the de-facto signature for the MOD format.
 //
 // Common MOD formats include the original The Ultimate Soundtracker, Protracker, FastTracker II...
 //

@@ -30,7 +30,7 @@ tasks:
   nil:
     desc: "Run the static analysis techniques to catch Nil dereferences."
     cmds:
-      - nilaway ./...
+      - go tool nilaway -test=false ./...
   pkg-patch:
     aliases:
       - "patch"
@@ -57,4 +57,3 @@ tasks:
     desc: "Run the test suite with the slower race detection."
     cmds:
       - go test -count 1 -race ./...
-
