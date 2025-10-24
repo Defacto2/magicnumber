@@ -101,16 +101,21 @@ func ASCII(r io.ReaderAt) bool {
 	return true
 }
 
-// CodePage returns true if the reader contains is a possible IBM code page
-// text file that was often found on DOS and 16-bit Windows computers.
+// CodePage returns true if the reader is a potential IBM code page
+// text file that was often in use on DOS and ancient Windows systems.
 //
-// This function is heuristic and checks for the following:
+// This function is heuristic and checks for unique patterns, otherwise
+// it will return false, and should be used in combination with [Txt].
 //   - no multiple nulls before the EOF marker
 //   - require IBM PC/Microsoft newlines
 //   - number of newlines should be at least (80 columns / length of file) / halved
+//   - geometric triangle pairs, ▲▼ ◄► ►◄
 func CodePage(r io.ReaderAt) bool {
 	nulpair := []byte{0x0, 0x0}
 	msdosNL := []byte{0x0d, 0x0a}
+	updown := []byte{0x1e, 0x1f}    // ▲▼ example: https://defacto2.net/f/aa3078
+	leftright := []byte{0x11, 0x10} // ◄►
+	rightleft := []byte{0x10, 0x11} // ►◄
 	size := Length(r)
 	const chunkSize = 1024
 	const binary, textfile = false, true
@@ -127,6 +132,15 @@ func CodePage(r io.ReaderAt) bool {
 		}
 		if pos := bytes.Index(buf[:n], nulpair); pos != -1 {
 			return binary
+		}
+		if pos := bytes.Index(buf[:n], updown); pos != -1 {
+			return textfile
+		}
+		if pos := bytes.Index(buf[:n], leftright); pos != -1 {
+			return textfile
+		}
+		if pos := bytes.Index(buf[:n], rightleft); pos != -1 {
+			return textfile
 		}
 		newlineCount += bytes.Count(buf[:n], msdosNL)
 		if err == io.EOF {
