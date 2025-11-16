@@ -147,6 +147,7 @@ func Images() []Signature {
 		InterleavedBitmap,
 		MicrosoftIcon,
 		RIPscrip,
+		ElectronicArtsAnim,
 	}
 }
 

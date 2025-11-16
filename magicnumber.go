@@ -103,7 +103,10 @@ const (
 	UTF32Text
 	ANSIEscapeText
 	PlainText
+	ElectronicArtsAnim
 )
+
+const LastSignature = ElectronicArtsAnim
 
 func (sign Signature) String() string { //nolint:funlen
 	switch {
@@ -111,7 +114,7 @@ func (sign Signature) String() string { //nolint:funlen
 		return "0-byte data"
 	case sign == Unknown:
 		return "binary data"
-	case sign > PlainText:
+	case sign > LastSignature:
 		return "error"
 	}
 	return [...]string{
@@ -184,6 +187,7 @@ func (sign Signature) String() string { //nolint:funlen
 		"UTF-32 text",
 		"ANSI text",
 		"plain text",
+		"IFF AMIM image",
 	}[sign]
 }
 
@@ -193,7 +197,7 @@ func (sign Signature) Title() string { //nolint:funlen
 		return "Zero-byte data"
 	case sign == Unknown:
 		return "Binary data"
-	case sign > PlainText:
+	case sign > LastSignature:
 		return "Error"
 	}
 	return [...]string{
@@ -266,6 +270,7 @@ func (sign Signature) Title() string { //nolint:funlen
 		"UTF-32 text",
 		"ANSI escaped text",
 		"Plain text",
+		"Electronic Arts IFF animation",
 	}[sign]
 }
 
@@ -344,6 +349,7 @@ func Ext() *Extension { //nolint:funlen
 		UTF32Text:                         []string{".txt"},
 		ANSIEscapeText:                    []string{".ans"},
 		PlainText:                         []string{".txt"},
+		ElectronicArtsAnim:                []string{".iff", ".anm"},
 	}
 	return &exts
 }
@@ -427,6 +433,7 @@ func New() *Finder { //nolint:funlen
 		UTF8Text:                          Utf8,
 		UTF16Text:                         Utf16,
 		UTF32Text:                         Utf32,
+		ElectronicArtsAnim:                IffAnim,
 	}
 	return &finds
 }
