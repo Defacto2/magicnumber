@@ -104,9 +104,10 @@ const (
 	ANSIEscapeText
 	PlainText
 	ElectronicArtsAnim
+	PlanarBitMap
 )
 
-const LastSignature = ElectronicArtsAnim
+const LastSignature = PlanarBitMap
 
 func (sign Signature) String() string { //nolint:funlen
 	switch {
@@ -188,6 +189,7 @@ func (sign Signature) String() string { //nolint:funlen
 		"ANSI text",
 		"plain text",
 		"IFF AMIM image",
+		"IFF PBM image",
 	}[sign]
 }
 
@@ -271,6 +273,7 @@ func (sign Signature) Title() string { //nolint:funlen
 		"ANSI escaped text",
 		"Plain text",
 		"Electronic Arts IFF animation",
+		"IFF Planar BitMap",
 	}[sign]
 }
 
@@ -350,6 +353,7 @@ func Ext() *Extension { //nolint:funlen
 		ANSIEscapeText:                    []string{".ans"},
 		PlainText:                         []string{".txt"},
 		ElectronicArtsAnim:                []string{".iff", ".anm"},
+		PlanarBitMap:                      []string{".iff", ".lbm"},
 	}
 	return &exts
 }
@@ -434,6 +438,7 @@ func New() *Finder { //nolint:funlen
 		UTF16Text:                         Utf16,
 		UTF32Text:                         Utf32,
 		ElectronicArtsAnim:                IffAnim,
+		PlanarBitMap:                      IffPBM,
 	}
 	return &finds
 }

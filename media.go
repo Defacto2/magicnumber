@@ -277,6 +277,27 @@ func IffAnim(r io.ReaderAt) bool {
 	return bytes.Equal(p, []byte{'A', 'N', 'I', 'M'})
 }
 
+// IffPBM matches the IFF Planar BitMap image format.
+// This is probably created by Deluxe Paint II Deluxe (v3) on PC.
+func IffPBM(r io.ReaderAt) bool {
+	const size = 4
+	p := make([]byte, size)
+	sr := io.NewSectionReader(r, 0, size)
+	if n, err := sr.Read(p); err != nil || n < size {
+		return false
+	}
+	if !bytes.Equal(p, []byte{'F', 'O', 'R', 'M'}) {
+		return false
+	}
+	const offset = 8
+	p = make([]byte, size)
+	sr = io.NewSectionReader(r, offset, size)
+	if n, err := sr.Read(p); err != nil || n < size {
+		return false
+	}
+	return bytes.Equal(p, []byte{'P', 'B', 'M', ' '})
+}
+
 // IlbmDecode reads the InterLeaved Bitmap image format in the reader and returns the width and height.
 func IlbmDecode(r io.ReaderAt) (int, int) {
 	const offset, size = 20, 4
