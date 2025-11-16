@@ -283,6 +283,9 @@ func ArcSEA(r io.ReaderAt) bool {
 		id     = 0x1a
 		method = 0x11 // max method id for ARC compression format
 	)
+	if len(p) < size {
+		return false
+	}
 	return p[0] == id && p[1] <= method
 }
 
@@ -322,6 +325,9 @@ func Arj(r io.ReaderAt) bool {
 		signature = 0xea
 		offset    = 0x02
 	)
+	if len(p) < size {
+		return false
+	}
 	return p[0] == id && p[1] == signature && p[10] == offset
 }
 

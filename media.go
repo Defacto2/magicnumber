@@ -177,7 +177,7 @@ func jpeg(r io.ReaderAt, suffix bool) bool {
 	if n, err := sr.Read(p); err != nil || n < 1 {
 		return false
 	}
-	if p[0] != 0xe0 && p[0] != 0xe1 {
+	if len(p) > 0 && p[0] != 0xe0 && p[0] != 0xe1 {
 		return false
 	}
 	const jsize = 5
@@ -202,7 +202,26 @@ func jpeg(r io.ReaderAt, suffix bool) bool {
 	if n, err := sr.Read(p); err != nil || int64(n) < sufSize {
 		return false
 	}
-	return bytes.HasSuffix(p, []byte{0xff, 0xd9})
+	if bytes.HasSuffix(p, []byte{0xff, 0xd9}) {
+		return true
+	}
+	return jpegPlusSauce(r)
+}
+
+// jpegPlusSauce handles an edge case, with the SAUCE metadata
+// method that appends data to the end of the file.
+func jpegPlusSauce(r io.ReaderAt) bool {
+	const sauceSeek = 128
+	length := Length(r)
+	sauce := []byte{0xff, 0xd9, 0x1a, 0x53, 0x41, 0x55, 0x43, 0x45, 0x30, 0x30}
+	sauceSize := int64(sauceSeek + len(sauce))
+	suffOff := length - sauceSize
+	p := make([]byte, sauceSize)
+	sr := io.NewSectionReader(r, suffOff, sauceSize)
+	if n, err := sr.Read(p); err != nil || int64(n) < sauceSize {
+		return false
+	}
+	return bytes.Contains(p, sauce)
 }
 
 // Jpeg2000 matches the JPEG 2000 image format.
@@ -302,6 +321,9 @@ func Mpeg(r io.ReaderAt) bool {
 	p := make([]byte, size)
 	sr := io.NewSectionReader(r, 0, size)
 	if n, err := sr.Read(p); err != nil || n < size {
+		return false
+	}
+	if len(p) < size {
 		return false
 	}
 	return bytes.Equal(p[:3], []byte{0x0, 0x0, 0x1}) && p[3] >= 0xba && p[3] <= 0xbf

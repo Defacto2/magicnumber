@@ -177,10 +177,8 @@ func TestFind(t *testing.T) {
 		}
 		base := filepath.Base(path)
 		skip := []string{"SAMPLE.DAT", "uncompress.bin"}
-		for _, s := range skip {
-			if s == base {
-				return nil
-			}
+		if slices.Contains(skip, base) {
+			return nil
 		}
 		f, err := os.Open(path)
 		be.Err(t, err, nil)

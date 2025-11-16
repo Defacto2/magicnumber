@@ -207,7 +207,7 @@ func (sign Signature) Title() string { //nolint:funlen
 		"Tagged Image File Format",
 		"Bitmap image file",
 		"Personal Computer eXchange",
-		"Interleaved Bitmap",
+		"ILBM Interleaved Bitmap",
 		"Microsoft Icon",
 		"RIPscrip vector graphic",
 		"MPEG-4 video",

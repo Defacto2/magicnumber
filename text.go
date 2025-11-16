@@ -179,7 +179,9 @@ func CSI(r io.ReaderAt) bool {
 			if finds >= minRequired {
 				return true
 			}
-			csi[2] = byte(c)
+			if len(csi) >= minRequired {
+				csi[2] = byte(c)
+			}
 			if pos := bytes.Index(buf[:n], csi); pos > -1 {
 				finds++
 				continue

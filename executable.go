@@ -67,6 +67,9 @@ func MSExe(r io.ReaderAt) bool {
 	if n, err := sr.Read(p); err != nil || n < size {
 		return false
 	}
+	if len(p) < size {
+		return false
+	}
 	return p[0] == 'M' && p[1] == 'Z' || p[0] == 'Z' && p[1] == 'M'
 }
 

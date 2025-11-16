@@ -1,4 +1,8 @@
 version: "2"
+run:
+  # don't limit displayed issues
+  max-issues-per-linter: 0
+  max-issues-per-file: 0
 linters:
   default: all
   disable:
