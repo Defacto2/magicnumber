@@ -26,7 +26,6 @@ const (
 	cabFile        = "TEST.cab"
 	zooFile        = "TEST.zoo"
 	rarFile        = "TEST.rar"
-	zip64File      = "TEST64.zip"
 )
 
 func TestArchive(t *testing.T) {

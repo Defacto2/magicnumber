@@ -96,10 +96,10 @@ func TestPNG(t *testing.T) {
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Png(r))
-	be.Equal(t, magicnumber.PortableNetworkGraphics, magicnumber.Find(r))
+	be.Equal(t, magicnumber.Find(r), magicnumber.PortableNetworkGraphics)
 	sign, err := magicnumber.Image(r)
 	be.Err(t, err, nil)
-	be.Equal(t, magicnumber.PortableNetworkGraphics, sign)
+	be.Equal(t, sign, magicnumber.PortableNetworkGraphics)
 }
 
 func TestWebp(t *testing.T) {
@@ -108,7 +108,7 @@ func TestWebp(t *testing.T) {
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Webp(r))
-	be.Equal(t, magicnumber.GoogleWebP, magicnumber.Find(r))
+	be.Equal(t, magicnumber.Find(r), magicnumber.GoogleWebP)
 }
 
 func TestWave(t *testing.T) {
@@ -117,7 +117,7 @@ func TestWave(t *testing.T) {
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Wave(r))
-	be.Equal(t, magicnumber.WaveAudioForWindows, magicnumber.Find(r))
+	be.Equal(t, magicnumber.Find(r), magicnumber.WaveAudioForWindows)
 }
 
 func TestMP3(t *testing.T) {
@@ -126,7 +126,7 @@ func TestMP3(t *testing.T) {
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Mp3(r))
-	be.Equal(t, magicnumber.MPEG1AudioLayer3, magicnumber.Find(r))
+	be.Equal(t, magicnumber.Find(r), magicnumber.MPEG1AudioLayer3)
 }
 
 func TestOGG(t *testing.T) {
@@ -135,7 +135,7 @@ func TestOGG(t *testing.T) {
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Ogg(r))
-	be.Equal(t, magicnumber.OggVorbisCodec, magicnumber.Find(r))
+	be.Equal(t, magicnumber.Find(r), magicnumber.OggVorbisCodec)
 }
 
 func TestWMA(t *testing.T) {
@@ -144,10 +144,10 @@ func TestWMA(t *testing.T) {
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Wmv(r))
-	be.Equal(t, magicnumber.MicrosoftWindowsMedia, magicnumber.Find(r))
+	be.Equal(t, magicnumber.Find(r), magicnumber.MicrosoftWindowsMedia)
 	sign, err := magicnumber.Video(r)
 	be.Err(t, err, nil)
-	be.Equal(t, magicnumber.MicrosoftWindowsMedia, sign)
+	be.Equal(t, sign, magicnumber.MicrosoftWindowsMedia)
 }
 
 func TestFlac(t *testing.T) {
@@ -156,5 +156,5 @@ func TestFlac(t *testing.T) {
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Flac(r))
-	be.Equal(t, magicnumber.FreeLosslessAudioCodec, magicnumber.Find(r))
+	be.Equal(t, magicnumber.Find(r), magicnumber.FreeLosslessAudioCodec)
 }

@@ -14,9 +14,9 @@ func TestMod(t *testing.T) {
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.MK(r))
-	be.Equal(t, magicnumber.MusicProTracker, magicnumber.Find(r))
+	be.Equal(t, magicnumber.Find(r), magicnumber.MusicProTracker)
 	be.True(t, !magicnumber.MTM(r))
-	be.Equal(t, "ProTracker 8-channel song", magicnumber.MusicTracker(r))
+	be.Equal(t, magicnumber.MusicTracker(r), "ProTracker 8-channel song")
 }
 
 func TestXM(t *testing.T) {

@@ -105,9 +105,11 @@ const (
 	PlainText
 	ElectronicArtsAnim
 	PlanarBitMap
+	BinaryText
+	XBinaryText
 )
 
-const LastSignature = PlanarBitMap
+const LastSignature = XBinaryText
 
 func (sign Signature) String() string { //nolint:funlen
 	switch {
@@ -190,6 +192,8 @@ func (sign Signature) String() string { //nolint:funlen
 		"plain text",
 		"IFF AMIM image",
 		"IFF PBM image",
+		"PC binary text",
+		"XBIN binary text",
 	}[sign]
 }
 
@@ -274,6 +278,8 @@ func (sign Signature) Title() string { //nolint:funlen
 		"Plain text",
 		"Electronic Arts IFF animation",
 		"IFF Planar BitMap",
+		"IBM EGA/VGA binary text",
+		"XBIN extended binary text",
 	}[sign]
 }
 
@@ -354,6 +360,8 @@ func Ext() *Extension { //nolint:funlen
 		PlainText:                         []string{".txt"},
 		ElectronicArtsAnim:                []string{".iff", ".anm"},
 		PlanarBitMap:                      []string{".iff", ".lbm"},
+		BinaryText:                        []string{".bin"},
+		XBinaryText:                       []string{".xb", ".bin"},
 	}
 	return &exts
 }
@@ -482,10 +490,14 @@ func Find(r io.ReaderAt) Signature {
 		}
 	}
 	switch {
+	case XBin(r):
+		return XBinaryText
 	case Ansi(r):
 		return ANSIEscapeText
 	case CodePage(r), Txt(r):
 		return PlainText
+	case BinDump(r):
+		return BinaryText
 	default:
 		return Unknown
 	}
