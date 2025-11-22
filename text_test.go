@@ -1,7 +1,6 @@
 package magicnumber_test
 
 import (
-	"bytes"
 	"os"
 	"strings"
 	"testing"
@@ -217,45 +216,14 @@ func TestCodePage(t *testing.T) {
 	be.Equal(t, magicnumber.PlainText, sign)
 }
 
-func TestBinText(t *testing.T) {
-	t.Parallel()
-	sr := strings.NewReader("Hello world")
-	be.True(t, magicnumber.BinDump(sr))
-	br := bytes.NewReader([]byte{})
-	be.True(t, !magicnumber.BinDump(br))
-	br = bytes.NewReader([]byte{255, 12, 2, 56, 4, 88, 0, 55, 0, 38, 5, 199})
-	be.True(t, magicnumber.BinDump(br))
-	br = bytes.NewReader([]byte{
-		12, 2,
-		56, 4,
-		88, 0,
-		55, 0,
-		38, 5,
-		199, 15,
-	})
-	be.True(t, magicnumber.BinDump(br))
-}
-
-func TestY(t *testing.T) {
-	t.Parallel()
-	b := magicnumber.BinAttribute(byte(0x0B))
-	be.True(t, b)
-	b = magicnumber.BinAttribute(byte(0x02))
-	be.True(t, b)
-	b = magicnumber.BinAttribute(byte(0x0E))
-	be.True(t, b)
-}
-
 func TestBinaryTexts(t *testing.T) {
 	t.Parallel()
 	r, err := os.Open(tdfile("binarytxt.bin"))
 	be.Err(t, err, nil)
 	defer r.Close()
-	be.True(t, magicnumber.BinDump(r))
 	be.True(t, !magicnumber.XBin(r))
 	r, err = os.Open(tdfile("binarytxt.xb"))
 	be.Err(t, err, nil)
 	defer r.Close()
-	be.True(t, magicnumber.BinDump(r))
 	be.True(t, magicnumber.XBin(r))
 }

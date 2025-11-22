@@ -105,7 +105,6 @@ const (
 	PlainText
 	ElectronicArtsAnim
 	PlanarBitMap
-	BinaryText
 	XBinaryText
 )
 
@@ -116,7 +115,7 @@ func (sign Signature) String() string { //nolint:funlen
 	case sign <= ZeroByte:
 		return "0-byte data"
 	case sign == Unknown:
-		return "binary data"
+		return "binary data or text"
 	case sign > LastSignature:
 		return "error"
 	}
@@ -192,7 +191,6 @@ func (sign Signature) String() string { //nolint:funlen
 		"plain text",
 		"IFF AMIM image",
 		"IFF PBM image",
-		"PC binary text",
 		"XBIN binary text",
 	}[sign]
 }
@@ -202,7 +200,7 @@ func (sign Signature) Title() string { //nolint:funlen
 	case sign <= ZeroByte:
 		return "Zero-byte data"
 	case sign == Unknown:
-		return "Binary data"
+		return "Binary data or binary text"
 	case sign > LastSignature:
 		return "Error"
 	}
@@ -278,7 +276,6 @@ func (sign Signature) Title() string { //nolint:funlen
 		"Plain text",
 		"Electronic Arts IFF animation",
 		"IFF Planar BitMap",
-		"IBM EGA/VGA binary text",
 		"XBIN extended binary text",
 	}[sign]
 }
@@ -360,7 +357,6 @@ func Ext() *Extension { //nolint:funlen
 		PlainText:                         []string{".txt"},
 		ElectronicArtsAnim:                []string{".iff", ".anm"},
 		PlanarBitMap:                      []string{".iff", ".lbm"},
-		BinaryText:                        []string{".bin"},
 		XBinaryText:                       []string{".xb", ".bin"},
 	}
 	return &exts
@@ -490,14 +486,12 @@ func Find(r io.ReaderAt) Signature {
 		}
 	}
 	switch {
-	case XBin(r):
-		return XBinaryText
 	case Ansi(r):
 		return ANSIEscapeText
 	case CodePage(r), Txt(r):
 		return PlainText
-	case BinDump(r):
-		return BinaryText
+	case XBin(r):
+		return XBinaryText
 	default:
 		return Unknown
 	}

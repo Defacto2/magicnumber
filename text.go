@@ -448,51 +448,6 @@ func Utf32(r io.ReaderAt) bool {
 	return bytes.Equal(p, []byte{0xff, 0xfe, 0x0, 0x0}) || bytes.Equal(p, []byte{0x0, 0x0, 0xfe, 0xff})
 }
 
-// BinDump returns true if the first 1024 bytes of the reader matches a binary dump
-// of a PC VGA or EGA video screen. This is confirmed with every second byte being
-// a valid bit combination containing a 4-bit color value for both foreground and
-// background colors.
-func BinDump(r io.ReaderAt) bool {
-	const maxLen, minLen = 1024, 10
-	buf := make([]byte, maxLen)
-	n, err := r.ReadAt(buf, 0)
-	if err != nil && err != io.EOF {
-		return false
-	}
-	if n < minLen {
-		return false
-	}
-	if int64(n) > maxLen {
-		n = int(maxLen)
-	}
-	limit := int64(n)
-	const start = int64(1)
-	for off := start; off < limit; off += 2 {
-		b := buf[off]
-		if color := BinAttribute(b); !color {
-			return false
-		}
-	}
-	return true
-}
-
-// BinAttribute returns true if the byte contains valid foreground and background bits.
-//
-//nolint:mnd
-func BinAttribute(b byte) bool {
-	const colorCnt = 0x07
-	fg := b & colorCnt         // bits 0-2
-	intense := (b >> 3) & 0x01 // bit 3
-	bg := (b >> 4) & colorCnt  // bits 4-6
-	fgColor := fg | intense<<3
-	bgColor := bg | ((b>>7)&0x01)<<3
-	const white = 15
-	if fgColor > white || bgColor > white {
-		return false
-	}
-	return true
-}
-
 // XBin matches the eXtender BInary text format.
 func XBin(r io.ReaderAt) bool {
 	const size = 5
