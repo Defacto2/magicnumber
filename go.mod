@@ -1,6 +1,6 @@
 module github.com/Defacto2/magicnumber
 
-go 1.24.5
+go 1.25.6
 
 require (
 	github.com/nalgeon/be v0.3.0

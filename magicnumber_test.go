@@ -69,7 +69,7 @@ func ExampleArchive() {
 	}
 	fmt.Println(sign2)
 	// Output: Microsoft cabinet
-	// binary data
+	// binary data or text
 }
 
 func ExampleFind() {
@@ -149,8 +149,8 @@ func TestUnknowns(t *testing.T) {
 	sign, err := magicnumber.Archive(nr)
 	be.Err(t, err, nil)
 	be.Equal(t, magicnumber.Unknown, sign)
-	be.Equal(t, "binary data", sign.String())
-	be.Equal(t, "Binary data", sign.Title())
+	be.Equal(t, sign.String(), "binary data or text")
+	be.Equal(t, sign.Title(), "Binary data or binary text")
 
 	b, sign, err := magicnumber.MatchExt(emptyFile, nr)
 	be.Err(t, err, nil)
