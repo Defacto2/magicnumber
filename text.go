@@ -7,7 +7,7 @@ import (
 	"io"
 )
 
-// NotASCII returns true if the byte is not an printable ASCII character.
+// NotASCII returns true if the byte is not a printable ASCII character.
 // Most control characters are not printable ASCII characters, but an exception
 // is made for the ESC (escape) character which is used in ANSI escape codes and
 // the EOF (end of file) character which is used in DOS.
@@ -43,7 +43,7 @@ func NotPlainText(b byte) bool {
 	return !ExtendedASCII
 }
 
-// NonISO889591 returns true if the byte is not a printable ISO/IEC-8895-1 character.
+// NonISO889591 returns true if the byte is not a printable ISO/IEC-8859-1 character.
 func NonISO889591(b byte) bool {
 	if !NotASCII(b) {
 		return false
