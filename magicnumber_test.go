@@ -180,7 +180,7 @@ func TestFind(t *testing.T) {
 		if slices.Contains(skip, base) {
 			return nil
 		}
-		f, err := os.Open(path)
+		f, err := os.Open(path) //nolint:gosec
 		be.Err(t, err, nil)
 		defer f.Close()
 		sign := magicnumber.Find(f)

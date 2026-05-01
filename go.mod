@@ -1,18 +1,18 @@
 module github.com/Defacto2/magicnumber
 
-go 1.25.6
+go 1.26.2
 
 require (
 	github.com/nalgeon/be v0.3.0
-	golang.org/x/text v0.35.0
+	golang.org/x/text v0.36.0
 )
 
 require (
 	github.com/klauspost/compress v1.18.0 // indirect
 	go.uber.org/nilaway v0.0.0-20251119034912-44f92224c998 // indirect
-	golang.org/x/mod v0.33.0 // indirect
+	golang.org/x/mod v0.34.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/tools v0.42.0 // indirect
+	golang.org/x/tools v0.43.0 // indirect
 )
 
 tool go.uber.org/nilaway/cmd/nilaway

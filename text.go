@@ -158,8 +158,11 @@ func CodePage(r io.ReaderAt) bool {
 // that are used in ANSI encoded texts. This is a heuristic function and does not guarantee that the reader
 // contains ANSI encoded text.
 func CSI(r io.ReaderAt) bool {
-	const esc, leftBracket = 0x1b, 0x5b
-	const minRequired = 3
+	const (
+		esc, leftBracket = 0x1b, 0x5b
+		minRequired      = 3
+		maxChar          = 0xFF
+	)
 	csi := []byte{esc, leftBracket, 0x0}
 	codes := []rune{'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'J', 'K', '=', 's', 'u', '#'}
 	finds := 0
@@ -180,7 +183,7 @@ func CSI(r io.ReaderAt) bool {
 				return true
 			}
 			if len(csi) >= minRequired {
-				csi[2] = byte(c)
+				csi[2] = byte(c & maxChar)
 			}
 			if pos := bytes.Index(buf[:n], csi); pos > -1 {
 				finds++
