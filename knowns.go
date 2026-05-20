@@ -1,6 +1,7 @@
 package magicnumber
 
 import (
+	"fmt"
 	"io"
 )
 
@@ -100,7 +101,9 @@ func Document(r io.ReaderAt) (Signature, error) {
 	switch {
 	case Ansi(r):
 		return ANSIEscapeText, nil
-	case CodePage(r), Txt(r):
+	case CodePage(r):
+		return PlainText, nil
+	case Txt(r):
 		return PlainText, nil
 	default:
 		return Unknown, nil
@@ -179,20 +182,37 @@ func Programs() []Signature {
 // Text reads the first 512 bytes from the reader and returns the file type signature if
 // the file is a known plain text file or Unknown if the file is not a text file.
 func Text(r io.ReaderAt) (Signature, error) {
+	return TextW(io.Discard, r)
+}
+
+// TextW reads the first 512 bytes from the reader and returns the file type signature if
+// the file is a known plain text file or Unknown if the file is not a text file.
+//
+// The writer is optional for debug output but can usually be [io.Discard].
+func TextW(w io.Writer, r io.ReaderAt) (Signature, error) {
+	if w == nil {
+		w = io.Discard
+	}
+	const name = "text knowns"
+	fmt.Fprintln(w, name)
 	find := *New()
 	for _, doc := range Texts() {
 		if finder, exists := find[doc]; exists {
 			if finder(r) {
+				fmt.Fprintf(w, "%s finder matched: %s\n", name, doc)
 				return doc, nil
 			}
 		}
 	}
 	switch {
-	case Ansi(r):
+	case AnsiW(w, r):
 		return ANSIEscapeText, nil
-	case CodePage(r), Txt(r):
+	case CodePageW(w, r):
+		return PlainText, nil
+	case TxtW(w, r):
 		return PlainText, nil
 	default:
+		fmt.Fprintf(w, "%s returned default unknown\n", name)
 		return Unknown, nil
 	}
 }

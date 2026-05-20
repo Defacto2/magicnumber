@@ -1,8 +1,4 @@
-version: "2"
-run:
-  # don't limit displayed issues
-  max-issues-per-linter: 0
-  max-issues-per-file: 0
+version: '2'
 linters:
   default: all
   disable:
@@ -11,6 +7,7 @@ linters:
     - exhaustive
     - exhaustruct
     - ireturn
+    - gomodguard
     - nlreturn
     - noinlineerr
     - paralleltest

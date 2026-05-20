@@ -4,7 +4,9 @@ package magicnumber
 
 import (
 	"bytes"
+	"fmt"
 	"io"
+	"strings"
 )
 
 // NotASCII returns true if the byte is not a printable ASCII character.
@@ -103,6 +105,12 @@ func ASCII(r io.ReaderAt) bool {
 
 // CodePage returns true if the reader is a potential IBM code page
 // text file that was often in use on DOS and ancient Windows systems.
+func CodePage(r io.ReaderAt) bool {
+	return CodePageW(io.Discard, r)
+}
+
+// CodePageW returns true if the reader is a potential IBM code page
+// text file that was often in use on DOS and ancient Windows systems.
 //
 // This function is heuristic and checks for unique patterns, otherwise
 // it will return false, and should be used in combination with [Txt].
@@ -110,17 +118,19 @@ func ASCII(r io.ReaderAt) bool {
 //   - require IBM PC/Microsoft newlines
 //   - number of newlines should be at least (80 columns / length of file) / halved
 //   - geometric triangle pairs, ▲▼ ◄► ►◄
-func CodePage(r io.ReaderAt) bool {
-	nulpair := []byte{0x0, 0x0}
+//
+// The writer is optional for debug output but can usually be [io.Discard].
+func CodePageW(w io.Writer, r io.ReaderAt) bool {
+	if w == nil {
+		w = io.Discard
+	}
 	msdosNL := []byte{0x0d, 0x0a}
-	updown := []byte{0x1e, 0x1f}    // ▲▼ example: https://defacto2.net/f/aa3078
-	leftright := []byte{0x11, 0x10} // ◄►
-	rightleft := []byte{0x10, 0x11} // ►◄
 	size := Length(r)
 	const chunkSize = 1024
 	const binary, textfile = false, true
 	newlineCount := 0
 	buf := make([]byte, chunkSize)
+	debug(w, fmt.Sprintf("reading %d byte chunks of %d bytes", chunkSize, size))
 	for offset := int64(0); offset < size; offset += chunkSize {
 		bytesToRead := chunkSize
 		if offset+int64(chunkSize) > size {
@@ -128,19 +138,11 @@ func CodePage(r io.ReaderAt) bool {
 		}
 		n, err := r.ReadAt(buf[:bytesToRead], offset)
 		if err != nil && err != io.EOF {
+			debug(w, "read to end of file marker")
 			return binary
 		}
-		if pos := bytes.Index(buf[:n], nulpair); pos != -1 {
-			return binary
-		}
-		if pos := bytes.Index(buf[:n], updown); pos != -1 {
-			return textfile
-		}
-		if pos := bytes.Index(buf[:n], leftright); pos != -1 {
-			return textfile
-		}
-		if pos := bytes.Index(buf[:n], rightleft); pos != -1 {
-			return textfile
+		if ok, match := charPairs(w, n, buf); ok {
+			return match
 		}
 		newlineCount += bytes.Count(buf[:n], msdosNL)
 		if err == io.EOF {
@@ -148,10 +150,63 @@ func CodePage(r io.ReaderAt) bool {
 		}
 	}
 	const columns = int64(80)
+	const minimumWords = 10 // this is just an arbitrary value, generally binary files have 0 words
 	if size > columns {
-		return int64(newlineCount) >= (size/columns)/2
+		const split = 2
+		b := int64(newlineCount) >= (size/columns)/split
+		debug(w, fmt.Sprintf("%d newline count >= than %d size / %d columns / 2 = return %t",
+			newlineCount, size, columns, b))
+		if b {
+			return true
+		}
+		b = words(r, size) > minimumWords
+
+		return b
 	}
+	debug(w, "returning textfile")
 	return textfile
+}
+
+func charPairs(w io.Writer, n int, buf []byte) (bool, bool) {
+	nulpair := []byte{0x0, 0x0}
+	updown := []byte{0x1e, 0x1f}    // ▲▼ example: https://defacto2.net/f/aa3078
+	leftright := []byte{0x11, 0x10} // ◄►
+	rightleft := []byte{0x10, 0x11} // ►◄
+	const binary, textfile = false, true
+	const match = true
+	if pos := bytes.Index(buf[:n], nulpair); pos != -1 {
+		debug(w, "read to end of file without a marker")
+		return match, binary
+	}
+	if pos := bytes.Index(buf[:n], updown); pos != -1 {
+		debug(w, "returning textfile up-down ▲▼ match")
+		return match, textfile
+	}
+	if pos := bytes.Index(buf[:n], leftright); pos != -1 {
+		debug(w, "returning textfile left-right ◄► match")
+		return match, textfile
+	}
+	if pos := bytes.Index(buf[:n], rightleft); pos != -1 {
+		debug(w, "returning textfile right-left ►◄ match")
+		return match, textfile
+	}
+	return !match, false
+}
+
+func debug(w io.Writer, s string) {
+	if w == nil {
+		return
+	}
+	fmt.Fprintln(w, "code page text "+s)
+}
+
+func words(r io.ReaderAt, size int64) int {
+	buf := make([]byte, size)
+	_, err := r.ReadAt(buf, 0)
+	if err != nil && err != io.EOF {
+		return 0
+	}
+	return len(strings.Fields(string(buf)))
 }
 
 // CSI returns true if the reader contains three or more common Control Sequence Introducer (CSI) escape codes
@@ -201,6 +256,15 @@ func CSI(r io.ReaderAt) bool {
 // It for speed and to avoid false positives it only matches the ANSI escape codes
 // for bold, normal and reset text.
 func Ansi(r io.ReaderAt) bool {
+	return AnsiW(io.Discard, r)
+}
+
+// AnsiW returns true if the reader contains some common ANSI escape codes.
+// It for speed and to avoid false positives it only matches the ANSI escape codes
+// for bold, normal and reset text.
+//
+// The writer is optional for debug output but can usually be [io.Discard].
+func AnsiW(w io.Writer, r io.ReaderAt) bool {
 	const esc = 0x1b
 	var (
 		reset   = []byte{esc, '[', '0', 'm'}
@@ -211,6 +275,7 @@ func Ansi(r io.ReaderAt) bool {
 	// check for the common ANSI escape codes
 	size := Length(r)
 	const chunkSize = 1024
+	ansiln(w, fmt.Sprintf("total size %d, chunks %d", size, chunkSize))
 	buf := make([]byte, chunkSize)
 	for offset := int64(0); offset < size; offset += chunkSize {
 		bytesToRead := chunkSize
@@ -219,26 +284,40 @@ func Ansi(r io.ReaderAt) bool {
 		}
 		n, err := r.ReadAt(buf[:bytesToRead], offset)
 		if err != nil && err != io.EOF {
+			ansiln(w, fmt.Sprintf("error, bytes to read %d, offset %d, %s", bytesToRead, offset, err))
 			return false
 		}
-
 		if pos := bytes.Index(buf[:n], reset); pos != -1 {
+			ansiln(w, fmt.Sprintf("reset, position %d", pos))
 			return true
 		}
 		if pos := bytes.Index(buf[:n], restart); pos != -1 {
+			ansiln(w, fmt.Sprintf("restart, position %d", pos))
 			return true
 		}
 		if pos := bytes.Index(buf[:n], bold); pos != -1 {
+			ansiln(w, fmt.Sprintf("bold, position %d", pos))
 			return true
 		}
 		if pos := bytes.Index(buf[:n], normal); pos != -1 {
+			ansiln(w, fmt.Sprintf("normal, position %d", pos))
 			return true
 		}
 		if err == io.EOF {
+			ansiln(w, fmt.Sprintf("end of file, %d bytes", n))
 			break
 		}
 	}
+	ansiln(w, "scan complete and found nothing")
 	return false
+}
+
+func ansiln(w io.Writer, s string) {
+	if w == nil {
+		return
+	}
+	const name = "ansi readerat "
+	fmt.Fprintln(w, name+s)
 }
 
 // Hlp returns true if the reader contains the Windows Help File signature.
@@ -325,14 +404,24 @@ func Rtf(r io.ReaderAt) bool {
 
 // Txt returns true if the reader exclusively contains plain text ASCII characters,
 // control characters or "extended ASCII characters".
+func Txt(r io.ReaderAt) bool {
+	return TxtW(io.Discard, r)
+}
+
+// TxtW returns true if the reader exclusively contains plain text ASCII characters,
+// control characters or "extended ASCII characters".
 //
 // There is a 2% threshold for non-plain text characters such as ASCII control characters
 // which are not printable but often found in plain text files for 8-bit microcomputers.
-func Txt(r io.ReaderAt) bool {
+func TxtW(w io.Writer, r io.ReaderAt) bool {
+	if w == nil {
+		w = io.Discard
+	}
 	const chunkSize = 1024
 	size := Length(r)
 	buf := make([]byte, chunkSize)
 	nonPlainText := 0
+	debug(w, fmt.Sprintf("reading %d byte chunks of %d bytes", chunkSize, size))
 	for offset := int64(0); offset < size; offset += chunkSize {
 		bytesToRead := chunkSize
 		if offset+int64(chunkSize) > size {
@@ -340,12 +429,14 @@ func Txt(r io.ReaderAt) bool {
 		}
 		n, err := r.ReadAt(buf[:bytesToRead], offset)
 		if err != nil && err != io.EOF {
+			debug(w, fmt.Sprintf("readat error: %s", err))
 			return false
 		}
 		for i := range n {
 			if NotPlainText(buf[i]) {
 				nonPlainText++
 				if !threshold(nonPlainText, size) {
+					debug(w, fmt.Sprintf("count is greater than 2%% of the %d bytes", size))
 					return false
 				}
 			}

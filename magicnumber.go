@@ -20,6 +20,7 @@ package magicnumber
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"path/filepath"
 	"slices"
@@ -110,6 +111,14 @@ const (
 
 const LastSignature = XBinaryText
 
+const (
+	mpeg4video = "MPEG-4 video"
+	eexe       = ".exe"
+	iiff       = ".iff"
+	ttxt       = ".txt"
+	zzip       = ".zip"
+)
+
 func (sign Signature) String() string { //nolint:funlen
 	switch {
 	case sign <= ZeroByte:
@@ -133,7 +142,7 @@ func (sign Signature) String() string { //nolint:funlen
 		"ILBM image",
 		"Microsoft icon",
 		"RIPscrip",
-		"MPEG-4 video",
+		mpeg4video,
 		"QuickTime video",
 		"QuickTime M4V video",
 		"AVI video",
@@ -218,12 +227,12 @@ func (sign Signature) Title() string { //nolint:funlen
 		"ILBM Interleaved Bitmap",
 		"Microsoft Icon",
 		"RIPscrip vector graphic",
-		"MPEG-4 video",
+		mpeg4video,
 		"QuickTime Movie",
 		"QuickTime M4V",
 		"Microsoft Audio Video Interleave",
 		"Microsoft Windows Media",
-		"MPEG-4 video",
+		mpeg4video,
 		"Flash Video",
 		"RealPlayer",
 		"Musical Instrument Digital Interface",
@@ -286,7 +295,7 @@ type Extension map[Signature][]string
 // Ext returns a map of file type signatures to common file extensions.
 func Ext() *Extension { //nolint:funlen
 	exts := Extension{
-		ElectronicArtsIFF:                 []string{".iff"},
+		ElectronicArtsIFF:                 []string{iiff},
 		AV1ImageFile:                      []string{".avif"},
 		JPEGFileInterchangeFormat:         []string{".jpg", ".jpeg"},
 		JPEG2000:                          []string{".jp2", ".j2k", ".jpf", ".jpx", ".jpm", ".mj2"},
@@ -296,7 +305,7 @@ func Ext() *Extension { //nolint:funlen
 		TaggedImageFileFormat:             []string{".tif", ".tiff"},
 		BMPFileFormat:                     []string{".bmp"},
 		PersonalComputereXchange:          []string{".pcx"},
-		InterleavedBitmap:                 []string{".ilbm", ".iff"},
+		InterleavedBitmap:                 []string{".ilbm", iiff},
 		MicrosoftIcon:                     []string{".ico"},
 		RIPscrip:                          []string{".rip"},
 		MPEG4:                             []string{".mp4"},
@@ -317,14 +326,14 @@ func Ext() *Extension { //nolint:funlen
 		MusicMultiTrackModule:             []string{".mtm"},
 		MusicImpulseTracker:               []string{".it"},
 		MusicProTracker:                   []string{".mod"},
-		PKWAREZipShrink:                   []string{".zip"},
-		PKWAREZipReduce:                   []string{".zip"},
-		PKWAREZipImplode:                  []string{".zip"},
-		PKWAREZip64:                       []string{".zip"},
-		PKWAREZip:                         []string{".zip"},
-		PKWAREMultiVolume:                 []string{".zip"},
-		PKLITE:                            []string{".zip"},
-		PKSFX:                             []string{".zip"},
+		PKWAREZipShrink:                   []string{zzip},
+		PKWAREZipReduce:                   []string{zzip},
+		PKWAREZipImplode:                  []string{zzip},
+		PKWAREZip64:                       []string{zzip},
+		PKWAREZip:                         []string{zzip},
+		PKWAREMultiVolume:                 []string{zzip},
+		PKLITE:                            []string{zzip},
+		PKSFX:                             []string{zzip},
 		TapeARchive:                       []string{".tar"},
 		RoshalARchive:                     []string{".rar"},
 		RoshalARchivev5:                   []string{".rar"},
@@ -340,9 +349,9 @@ func Ext() *Extension { //nolint:funlen
 		ArchiveRobertJung:                 []string{".arj"},
 		MicrosoftCABinet:                  []string{".cab"},
 		MicrosoftDOSKWAJ:                  []string{".com"},
-		MicrosoftDOSSZDD:                  []string{".exe"},
-		MicrosoftExecutable:               []string{".exe"},
-		MicrosoftCompoundFile:             []string{".exe"},
+		MicrosoftDOSSZDD:                  []string{eexe},
+		MicrosoftExecutable:               []string{eexe},
+		MicrosoftCompoundFile:             []string{eexe},
 		CDISO9660:                         []string{".iso"},
 		CDNero:                            []string{".nri"},
 		CDPowerISO:                        []string{".daa"},
@@ -350,13 +359,13 @@ func Ext() *Extension { //nolint:funlen
 		WindowsHelpFile:                   []string{".hlp"},
 		PortableDocumentFormat:            []string{".pdf"},
 		RichTextFormat:                    []string{".rtf"},
-		UTF8Text:                          []string{".txt"},
-		UTF16Text:                         []string{".txt"},
-		UTF32Text:                         []string{".txt"},
+		UTF8Text:                          []string{ttxt},
+		UTF16Text:                         []string{ttxt},
+		UTF32Text:                         []string{ttxt},
 		ANSIEscapeText:                    []string{".ans"},
-		PlainText:                         []string{".txt"},
-		ElectronicArtsAnim:                []string{".iff", ".anm"},
-		PlanarBitMap:                      []string{".iff", ".lbm"},
+		PlainText:                         []string{ttxt},
+		ElectronicArtsAnim:                []string{iiff, ".anm"},
+		PlanarBitMap:                      []string{iiff, ".lbm"},
 		XBinaryText:                       []string{".xb", ".bin"},
 	}
 	return &exts
@@ -477,23 +486,41 @@ func MatchExt(filename string, r io.ReaderAt) (bool, Signature, error) {
 
 // Find returns the file type signature from the byte slice.
 func Find(r io.ReaderAt) Signature {
+	return FindW(io.Discard, r)
+}
+
+// FindW returns the file type signature from the byte slice.
+//
+// The writer is optional for debug output but can usually be [io.Discard].
+func FindW(w io.Writer, r io.ReaderAt) Signature {
+	const name = "find magic number"
+	fmt.Fprintln(w, name)
 	if Empty(r) {
+		fmt.Fprintln(w, name+" zero btye")
 		return ZeroByte
 	}
 	matchers := *New()
 	for sign, matcher := range matchers {
 		if matcher(r) {
+			fmt.Fprintf(w, name+" matchers sign: %s\n", sign)
 			return sign
 		}
 	}
 	switch {
-	case Ansi(r):
+	case AnsiW(w, r):
+		fmt.Fprintf(w, "%s matched ansi: '%s'\n", name, ANSIEscapeText)
 		return ANSIEscapeText
-	case CodePage(r), Txt(r):
+	case CodePageW(w, r):
+		fmt.Fprintf(w, "%s matched codepage: '%s'\n", name, PlainText)
+		return PlainText
+	case Txt(r):
+		fmt.Fprintf(w, "%s matched txt: '%s'\n", name, PlainText)
 		return PlainText
 	case XBin(r):
+		fmt.Fprintf(w, "%s matched xbin: '%s'\n", name, XBinaryText)
 		return XBinaryText
 	default:
+		fmt.Fprintf(w, "%s matched default unknown: '%s'\n", name, Unknown)
 		return Unknown
 	}
 }
