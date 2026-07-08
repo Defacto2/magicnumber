@@ -18,6 +18,7 @@ func main() {
 	file, err := os.Open(name) //nolint:gosec
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 	defer file.Close()
 
