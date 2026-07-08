@@ -2,6 +2,7 @@ package magicnumber_test
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -44,6 +45,28 @@ const (
 	oggFile    = "TEST.ogg"
 	wmaFile    = "TEST.wma"
 )
+
+// _exampleReadme matches the README.md example and is used to lint and validate the syntax.
+func _exampleReadme() { //nolint:unused
+	w := os.Stdout
+	file, err := os.Open("example.exe")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+
+	// Option 1.
+	result := magicnumber.Find(file)
+	fmt.Fprintf(w, "File type: %s\n", result)
+
+	// Option 2.
+	valid, result, err := magicnumber.MatchExt("example.exe", file)
+	if err != nil {
+		fmt.Fprintln(os.Stderr)
+	}
+	fmt.Fprintf(w, "File type: %s\n", result)
+	fmt.Fprintf(w, "File extension valid: %v\n", valid)
+}
 
 func ExampleArchive() {
 	f1, err := os.Open(filepath.Join("testdata", "TEST.cab"))
