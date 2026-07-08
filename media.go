@@ -7,7 +7,9 @@ package magicnumber
 import (
 	"bytes"
 	"encoding/hex"
+	"fmt"
 	"io"
+	"math"
 	"strconv"
 )
 
@@ -152,32 +154,43 @@ func Ivr(r io.ReaderAt) bool {
 
 // Jpeg matches the JPEG File Interchange Format v1 image.
 func Jpeg(r io.ReaderAt) bool {
-	return jpeg(r, true)
+	return jpeg(io.Discard, r, true)
 }
 
 // JpegNoSuffix matches the JPEG File Interchange Format v1 image.
 // This is a less accurate method than Jpeg as it does not check the final bytes.
 func JpegNoSuffix(r io.ReaderAt) bool {
-	return jpeg(r, false)
+	return jpeg(io.Discard, r, false)
 }
 
-func jpeg(r io.ReaderAt, suffix bool) bool {
+// jpeg has a w writer that is only used for debugging,
+// and should be discarded.
+func jpeg(w io.Writer, r io.ReaderAt, suffix bool) bool { //nolint:funlen,cyclop
+	const name = "jpeg reader at"
+	if w == nil {
+		w = io.Discard
+	}
+	r = trimRightNulls(r)
 	const size = 3
 	p := make([]byte, size)
 	sr := io.NewSectionReader(r, 0, size)
 	if n, err := sr.Read(p); err != nil || n < size {
+		fmt.Fprintln(w, name, "section reader size:", n < size, "error:", err)
 		return false
 	}
 	if !bytes.Equal(p, []byte{0xff, 0xd8, 0xff}) {
+		fmt.Fprintln(w, name, "not found: 0xff, 0xd8, 0xff")
 		return false
 	}
 	p = make([]byte, 1)
 	const offset = 3
 	sr = io.NewSectionReader(r, offset, 1)
 	if n, err := sr.Read(p); err != nil || n < 1 {
+		fmt.Fprintln(w, name, "section reader offset:", n < 1, "error:", err)
 		return false
 	}
 	if len(p) > 0 && p[0] != 0xe0 && p[0] != 0xe1 {
+		fmt.Fprintln(w, name, "not found: 0xe0, 0xe1")
 		return false
 	}
 	const jsize = 5
@@ -185,10 +198,12 @@ func jpeg(r io.ReaderAt, suffix bool) bool {
 	p = make([]byte, jsize)
 	sr = io.NewSectionReader(r, joffset, jsize)
 	if n, err := sr.Read(p); err != nil || n < jsize {
+		fmt.Fprintln(w, name, "section reader jsize:", n < jsize, "error:", err)
 		return false
 	}
 	if !bytes.Equal(p, []byte{'J', 'F', 'I', 'F', 0x0}) &&
 		!bytes.Equal(p, []byte{'E', 'x', 'i', 'f', 0x0}) {
+		fmt.Fprintln(w, name, "not found: JFIF0x0 and: Exif0x0")
 		return false
 	}
 	if !suffix {
@@ -200,17 +215,35 @@ func jpeg(r io.ReaderAt, suffix bool) bool {
 	p = make([]byte, sufSize)
 	sr = io.NewSectionReader(r, suffOff, sufSize)
 	if n, err := sr.Read(p); err != nil || int64(n) < sufSize {
+		fmt.Fprintln(w, name, "section reader sufSize:", int64(n) < sufSize, "error:", err)
 		return false
 	}
 	if bytes.HasSuffix(p, []byte{0xff, 0xd9}) {
+		fmt.Fprintln(w, name, "found: 0xff, 0xd9")
 		return true
 	}
-	return jpegPlusSauce(r)
+	return jpegSauce(w, r)
 }
 
-// jpegPlusSauce handles an edge case, with the SAUCE metadata
+// trimRightNulls removes all tailing C null values that can block JPEG detection.
+// This is an edge case issue.
+func trimRightNulls(r io.ReaderAt) io.ReaderAt {
+	sr := io.NewSectionReader(r, 0, math.MaxInt64)
+	s, err := io.ReadAll(sr)
+	if err != nil {
+		return r
+	}
+	b := bytes.TrimRight(s, "\x00")
+	return bytes.NewReader(b)
+}
+
+// jpegSauce handles an edge case, with the SAUCE metadata
 // method that appends data to the end of the file.
-func jpegPlusSauce(r io.ReaderAt) bool {
+func jpegSauce(w io.Writer, r io.ReaderAt) bool {
+	const name = "jpeg reader at"
+	if w == nil {
+		w = io.Discard
+	}
 	const sauceSeek = 128
 	length := Length(r)
 	sauce := []byte{0xff, 0xd9, 0x1a, 0x53, 0x41, 0x55, 0x43, 0x45, 0x30, 0x30}
@@ -219,9 +252,12 @@ func jpegPlusSauce(r io.ReaderAt) bool {
 	p := make([]byte, sauceSize)
 	sr := io.NewSectionReader(r, suffOff, sauceSize)
 	if n, err := sr.Read(p); err != nil || int64(n) < sauceSize {
+		fmt.Fprintln(w, name, "section reader sauceSize:", int64(n) < sauceSize, "error:", err)
 		return false
 	}
-	return bytes.Contains(p, sauce)
+	x := bytes.Contains(p, sauce)
+	fmt.Fprintln(w, name, "found sauce metadata:", x)
+	return x
 }
 
 // Jpeg2000 matches the JPEG 2000 image format.
