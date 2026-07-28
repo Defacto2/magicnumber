@@ -341,3 +341,49 @@ func Cab(r io.ReaderAt) bool {
 	}
 	return bytes.Equal(p, []byte{'M', 'S', 'C', 'F'})
 }
+
+// Pak matches the NoGate Consulting PAK format.
+func Pak(r io.ReaderAt) bool {
+	size := Length(r)
+	const minimum = 4
+	if size < minimum {
+		return false
+	}
+
+	const headerSize = 2
+	header := make([]byte, headerSize)
+	if _, err := r.ReadAt(header, 0); err != nil {
+		return false
+	}
+
+	const arcMarker = 0x1a
+	if header[0] != arcMarker {
+		return false
+	}
+
+	const crushed = 0x0A   // Method 10 (0x0A) = Crushed (RLE90 + LZW)
+	const distilled = 0x0B // Method 11 (0x0B) = Distilled (LZ77 + Static Huffman)
+	methodNoGate := header[1] == crushed || header[1] == distilled
+
+	const trailerSize = 2
+	trailer := make([]byte, trailerSize)
+	if _, err := r.ReadAt(trailer, size-trailerSize); err != nil {
+		return false
+	}
+
+	const (
+		nul = 0x00
+		arc = 0x1A
+		pak = 0xFE
+	)
+	eofARC := trailer[0] == arc && trailer[1] == nul
+	eofPAK := trailer[0] == pak && trailer[1] == nul
+	if methodNoGate && (eofARC || eofPAK) {
+		return true
+	}
+	if trailer[0] == pak && trailer[1] == nul {
+		return true
+	}
+
+	return false
+}

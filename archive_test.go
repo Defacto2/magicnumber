@@ -26,7 +26,17 @@ const (
 	cabFile        = "TEST.cab"
 	zooFile        = "TEST.zoo"
 	rarFile        = "TEST.rar"
+	pakFile        = "PAK100.PAK"
 )
+
+func TestPak(t *testing.T) {
+	t.Parallel()
+	t.Log("TestPak")
+	r, err := os.Open(tdfile(pakFile))
+	be.Err(t, err, nil)
+	defer r.Close()
+	be.True(t, magicnumber.Pak(r))
+}
 
 func TestArchive(t *testing.T) {
 	t.Parallel()

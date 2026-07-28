@@ -258,6 +258,8 @@ func TestFind(t *testing.T) {
 		case ".MP3":
 			// do not test as it returns different results based on the file's ID3 tag
 			return nil
+		case ".PAK":
+			be.Equal(t, magicnumber.NoGatePAK, sign)
 		case ".PCX":
 			be.Equal(t, magicnumber.PersonalComputereXchange, sign)
 		case ".PNG":

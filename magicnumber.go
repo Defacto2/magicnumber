@@ -106,6 +106,7 @@ const (
 	PlainText
 	ElectronicArtsAnim
 	PlanarBitMap
+	NoGatePAK
 	XBinaryText
 )
 
@@ -200,6 +201,7 @@ func (sign Signature) String() string { //nolint:funlen
 		"plain text",
 		"IFF ANIM image",
 		"IFF PBM image",
+		"PAK archive",
 		"XBIN binary text",
 	}[sign]
 }
@@ -285,6 +287,7 @@ func (sign Signature) Title() string { //nolint:funlen
 		"Plain text",
 		"Electronic Arts IFF animation",
 		"IFF Planar BitMap",
+		"PAK archive by NoGate",
 		"XBIN extended binary text",
 	}[sign]
 }
@@ -366,6 +369,7 @@ func Ext() *Extension { //nolint:funlen
 		PlainText:                         []string{ttxt},
 		ElectronicArtsAnim:                []string{iiff, ".anm"},
 		PlanarBitMap:                      []string{iiff, ".lbm"},
+		NoGatePAK:                         []string{".pak"},
 		XBinaryText:                       []string{".xb", ".bin"},
 	}
 	return &exts
@@ -452,6 +456,7 @@ func New() *Finder { //nolint:funlen
 		UTF32Text:                         Utf32,
 		ElectronicArtsAnim:                IffAnim,
 		PlanarBitMap:                      IffPBM,
+		NoGatePAK:                         Pak,
 		XBinaryText:                       XBin,
 	}
 	return &finds

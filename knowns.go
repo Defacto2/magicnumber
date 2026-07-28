@@ -44,6 +44,7 @@ func Archives() []Signature {
 		ZooArchive,
 		ArchiveRobertJung,
 		MicrosoftCABinet,
+		NoGatePAK,
 	}
 }
 
@@ -84,6 +85,7 @@ func ArchivesBBS() []Signature {
 		YoshiLHA,
 		ZooArchive,
 		ArchiveRobertJung,
+		NoGatePAK,
 	}
 }
 
