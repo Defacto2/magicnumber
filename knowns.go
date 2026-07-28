@@ -39,12 +39,12 @@ func Archives() []Signature {
 		XZCompressArchive,
 		ZStandardArchive,
 		FreeArc,
+		NoGatePAK, // NoGatePAK must go before ARChiveSEA
 		ARChiveSEA,
 		YoshiLHA,
 		ZooArchive,
 		ArchiveRobertJung,
 		MicrosoftCABinet,
-		NoGatePAK,
 	}
 }
 
