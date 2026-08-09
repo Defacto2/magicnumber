@@ -22,16 +22,16 @@ func TestDaa(t *testing.T) {
 	defer r.Close()
 	be.True(t, magicnumber.Daa(r))
 	sign := magicnumber.Find(r)
-	be.Equal(t, magicnumber.CDPowerISO, sign)
-	be.Equal(t, "CD, PowerISO", sign.String())
-	be.Equal(t, "CD PowerISO", sign.Title())
+	be.Equal(t, sign, magicnumber.CDPowerISO)
+	be.Equal(t, sign.String(), "CD, PowerISO")
+	be.Equal(t, sign.Title(), "CD PowerISO")
 	b, sign, err := magicnumber.MatchExt(DaaFile, r)
 	be.Err(t, err, nil)
 	be.True(t, b)
-	be.Equal(t, magicnumber.CDPowerISO, sign)
+	be.Equal(t, sign, magicnumber.CDPowerISO)
 	sign, err = magicnumber.DiscImage(r)
 	be.Err(t, err, nil)
-	be.Equal(t, magicnumber.CDPowerISO, sign)
+	be.Equal(t, sign, magicnumber.CDPowerISO)
 }
 
 func TestCDISO(t *testing.T) {
@@ -42,13 +42,13 @@ func TestCDISO(t *testing.T) {
 	defer r.Close()
 	be.True(t, magicnumber.ISO(r))
 	sign := magicnumber.Find(r)
-	be.Equal(t, magicnumber.CDISO9660, sign)
-	be.Equal(t, "CD, ISO 9660", sign.String())
-	be.Equal(t, "CD ISO 9660", sign.Title())
+	be.Equal(t, sign, magicnumber.CDISO9660)
+	be.Equal(t, sign.String(), "CD, ISO 9660")
+	be.Equal(t, sign.Title(), "CD ISO 9660")
 	b, sign, err := magicnumber.MatchExt(ISOFile, r)
 	be.Err(t, err, nil)
 	be.True(t, b)
-	be.Equal(t, magicnumber.CDISO9660, sign)
+	be.Equal(t, sign, magicnumber.CDISO9660)
 }
 
 func TestMdf(t *testing.T) {
@@ -59,9 +59,9 @@ func TestMdf(t *testing.T) {
 	defer r.Close()
 	be.True(t, magicnumber.Mdf(r))
 	sign := magicnumber.Find(r)
-	be.Equal(t, magicnumber.CDAlcohol120, sign)
+	be.Equal(t, sign, magicnumber.CDAlcohol120)
 	b, sign, err := magicnumber.MatchExt(DaaFile, r)
 	be.Err(t, err, nil)
 	be.True(t, !b)
-	be.Equal(t, magicnumber.CDAlcohol120, sign)
+	be.Equal(t, sign, magicnumber.CDAlcohol120)
 }

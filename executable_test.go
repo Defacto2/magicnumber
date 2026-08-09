@@ -26,161 +26,170 @@ func TestMSExe(t *testing.T) {
 
 func TestFindBytesExecutableFreeDOS(t *testing.T) {
 	t.Parallel()
-	w, err := magicnumber.FindExecutable(nil)
+	got, err := magicnumber.FindExecutable(nil)
 	be.Err(t, err)
-	be.Equal(t, magicnumber.UnknownPE, w.PE)
-	be.Equal(t, magicnumber.NoneNE, w.NE)
+	be.Equal(t, got.PE, magicnumber.UnknownPE)
+	be.Equal(t, got.NE, magicnumber.NoneNE)
 
-	freedos := []string{
+	freedos := [4]string{
 		filepath.Join("exe", "EXE.EXE"),
 		filepath.Join("exemenu", "exemenu.exe"),
 		filepath.Join("press", "PRESS.EXE"),
 		filepath.Join("rread", "rread.exe"),
 	}
-	for _, v := range freedos {
-		p, err := os.Open(pathFile(t, filepath.Join("binaries", "freedos", v)))
+	for n, name := range freedos[:] {
+		t.Log(n, name)
+		p, err := os.Open(pathFile(t, filepath.Join("binaries", "freedos", name)))
 		be.Err(t, err, nil)
 		defer p.Close()
-		w, err = magicnumber.FindExecutable(p)
+		got, err = magicnumber.FindExecutable(p)
 		be.Err(t, err, nil)
-		be.Equal(t, magicnumber.UnknownPE, w.PE)
-		be.Equal(t, magicnumber.NoneNE, w.NE)
-		sign, err := magicnumber.Program(p)
+		be.Equal(t, got.PE, magicnumber.UnknownPE)
+		be.Equal(t, got.NE, magicnumber.NoneNE)
+		got, err := magicnumber.Program(p)
 		be.Err(t, err, nil)
-		be.Equal(t, magicnumber.MicrosoftExecutable, sign)
+		be.Equal(t, got, magicnumber.MicrosoftExecutable)
 	}
 }
 
 func TestFindBytesExecutableWinVista(t *testing.T) {
-	vista := []string{
+	vista := [3]string{
 		"hello.com",
 		"hellojs.com",
 		"life.com",
 	}
-	for _, v := range vista {
-		p, err := os.Open(pathFile(t, filepath.Join("binaries", "windows", v)))
+	for n, name := range vista[:] {
+		t.Log(n, name)
+		p, err := os.Open(pathFile(t, filepath.Join("binaries", "windows", name)))
 		be.Err(t, err, nil)
 		defer p.Close()
 		be.Err(t, err, nil)
 		w, err := magicnumber.FindExecutable(p)
 		be.Err(t, err, nil)
-		be.Equal(t, magicnumber.AMD64PE, w.PE)
-		be.Equal(t, 6, w.Major)
-		be.Equal(t, 0, w.Minor)
-		be.Equal(t, 2019, w.TimeDateStamp.Year())
-		be.Equal(t, "Windows Vista 64-bit", fmt.Sprint(w))
-		be.Equal(t, magicnumber.NoneNE, w.NE)
+		be.Equal(t, w.PE, magicnumber.AMD64PE)
+		be.Equal(t, w.Major, 6)
+		be.Equal(t, w.Minor, 0)
+		be.Equal(t, w.TimeDateStamp.Year(), 2019)
+		be.Equal(t, fmt.Sprint(w), "Windows Vista 64-bit")
+		be.Equal(t, w.NE, magicnumber.NoneNE)
 		sign, err := magicnumber.Program(p)
 		be.Err(t, err, nil)
-		be.Equal(t, magicnumber.MicrosoftExecutable, sign)
+		be.Equal(t, sign, magicnumber.MicrosoftExecutable)
 	}
 }
 
 func TestFindBytesExecutableWin3(t *testing.T) {
-	winv3 := []string{
+	winv3 := [3]string{
 		filepath.Join("calmir10", "CALMIRA.EXE"),
 		filepath.Join("calmir10", "TASKBAR.EXE"),
 		filepath.Join("dskutl21", "DISKUTIL.EXE"),
 	}
-	for _, v := range winv3 {
-		p, err := os.Open(pathFile(t, filepath.Join("binaries", "windows3x", v)))
+	for n, name := range winv3[:] {
+		t.Log(n, name)
+		p, err := os.Open(pathFile(t, filepath.Join("binaries", "windows3x", name)))
 		be.Err(t, err, nil)
 		defer p.Close()
-		w, err := magicnumber.FindExecutable(p)
+		win, err := magicnumber.FindExecutable(p)
 		be.Err(t, err, nil)
-		be.Equal(t, magicnumber.UnknownPE, w.PE)
-		be.Equal(t, magicnumber.Windows286Exe, w.NE)
-		be.Equal(t, "Windows for 286 New Executable", w.NE.String())
-		be.Equal(t, 3, w.Major)
-		be.Equal(t, 10, w.Minor)
-		be.Equal(t, "Windows v3.10 for 286", fmt.Sprint(w))
-		sign, err := magicnumber.Program(p)
+		be.Equal(t, win.PE, magicnumber.UnknownPE)
+		be.Equal(t, win.NE, magicnumber.Windows286Exe)
+		be.Equal(t, win.NE.String(), "Windows for 286 New Executable")
+		be.Equal(t, win.Major, 3)
+		be.Equal(t, win.Minor, 10)
+		be.Equal(t, fmt.Sprint(win), "Windows v3.10 for 286")
+		got, err := magicnumber.Program(p)
 		be.Err(t, err, nil)
-		be.Equal(t, magicnumber.MicrosoftExecutable, sign)
+		be.Equal(t, got, magicnumber.MicrosoftExecutable)
 	}
 
+	t.Log("32-bit Core Temp.exe")
 	p, err := os.Open(pathFile(t, filepath.Join("binaries", "windowsXP", "CoreTempv13", "32bit", "Core Temp.exe")))
 	be.Err(t, err, nil)
 	defer p.Close()
 	w, err := magicnumber.FindExecutable(p)
 	be.Err(t, err, nil)
-	be.Equal(t, magicnumber.Intel386PE, w.PE)
-	be.Equal(t, magicnumber.NoneNE, w.NE)
-	be.Equal(t, 5, w.Major)
-	be.Equal(t, 0, w.Minor)
-	be.Equal(t, "Windows 2000 32-bit", fmt.Sprint(w))
+	be.Equal(t, w.PE, magicnumber.Intel386PE)
+	be.Equal(t, w.NE, magicnumber.NoneNE)
+	be.Equal(t, w.Major, 5)
+	be.Equal(t, w.Minor, 0)
+	be.Equal(t, fmt.Sprint(w), "Windows 2000 32-bit")
 	sign, err := magicnumber.Program(p)
 	be.Err(t, err, nil)
-	be.Equal(t, magicnumber.MicrosoftExecutable, sign)
+	be.Equal(t, sign, magicnumber.MicrosoftExecutable)
 
+	t.Log("64-bit Core Temp.exe")
 	p, err = os.Open(pathFile(t, filepath.Join("binaries", "windowsXP", "CoreTempv13", "64bit", "Core Temp.exe")))
 	be.Err(t, err, nil)
 	defer p.Close()
 	be.Err(t, err, nil)
 	w, err = magicnumber.FindExecutable(p)
 	be.Err(t, err, nil)
-	be.Equal(t, magicnumber.AMD64PE, w.PE)
-	be.Equal(t, magicnumber.NoneNE, w.NE)
-	be.Equal(t, 5, w.Major)
-	be.Equal(t, 2, w.Minor)
-	be.Equal(t, "Windows XP Professional x64 Edition 64-bit", fmt.Sprint(w))
+	be.Equal(t, w.PE, magicnumber.AMD64PE)
+	be.Equal(t, w.NE, magicnumber.NoneNE)
+	be.Equal(t, w.Major, 5)
+	be.Equal(t, w.Minor, 2)
+	be.Equal(t, fmt.Sprint(w), "Windows XP Professional x64 Edition 64-bit")
 	sign, err = magicnumber.Program(p)
 	be.Err(t, err, nil)
-	be.Equal(t, magicnumber.MicrosoftExecutable, sign)
+	be.Equal(t, sign, magicnumber.MicrosoftExecutable)
 }
 
 func TestFindExecutableWinNT(t *testing.T) {
-	win9x := []string{
+	win9x := [5]string{
 		filepath.Join("rlowe-encrypt", "DEMOCD.EXE"),
 		filepath.Join("rlowe-encrypt", "DISKDVR.EXE"),
 		filepath.Join("rlowe-cdrools", "DEMOCD.EXE"),
 		filepath.Join("7za920", "7za.exe"),
 		filepath.Join("7z1604-extra", "7za.exe"),
 	}
-	for _, v := range win9x {
-		p, err := os.Open(pathFile(t, filepath.Join("binaries", "windows9x", v)))
+	for n, name := range win9x[:] {
+		t.Log(n, name)
+		p, err := os.Open(pathFile(t, filepath.Join("binaries", "windows9x", name)))
 		be.Err(t, err, nil)
 		defer p.Close()
 		w, err := magicnumber.FindExecutable(p)
 		be.Err(t, err, nil)
-		be.Equal(t, magicnumber.Intel386PE, w.PE)
-		be.Equal(t, 4, w.Major)
-		be.Equal(t, 0, w.Minor)
+		be.Equal(t, w.PE, magicnumber.Intel386PE)
+		be.Equal(t, w.Major, 4)
+		be.Equal(t, w.Minor, 0)
 		gt := w.TimeDateStamp.Year() > 2000
 		be.True(t, gt)
-		be.Equal(t, "Windows NT v4.0", fmt.Sprint(w))
-		be.Equal(t, magicnumber.NoneNE, w.NE)
+		be.Equal(t, fmt.Sprint(w), "Windows NT v4.0")
+		be.Equal(t, w.NE, magicnumber.NoneNE)
 	}
 }
 
 func TestFindExecutableWin9x(t *testing.T) {
-	unknown := []string{
+	unknowns := [3]string{
 		filepath.Join("rlowe-rformat", "RFORMATD.EXE"),
 		filepath.Join("rlowe-encrypt", "DFMINST.COM"),
 		filepath.Join("rlowe-encrypt", "UNINST.COM"),
 	}
-	for _, v := range unknown {
-		p, err := os.Open(pathFile(t, filepath.Join("binaries", "windows9x", v)))
+	for n, name := range unknowns[:] {
+		t.Log(n, name)
+		p, err := os.Open(pathFile(t, filepath.Join("binaries", "windows9x", name)))
 		be.Err(t, err, nil)
 		defer p.Close()
 		w, _ := magicnumber.FindExecutable(p)
-		be.Equal(t, magicnumber.UnknownPE, w.PE)
-		be.Equal(t, 0, w.Major)
-		be.Equal(t, 0, w.Minor)
-		be.Equal(t, 1, w.TimeDateStamp.Year())
-		be.Equal(t, "Unknown PE executable", fmt.Sprint(w))
-		be.Equal(t, magicnumber.NoneNE, w.NE)
+		be.Equal(t, w.PE, magicnumber.UnknownPE)
+		be.Equal(t, w.Major, 0)
+		be.Equal(t, w.Minor, 0)
+		be.Equal(t, w.TimeDateStamp.Year(), 1)
+		be.Equal(t, fmt.Sprint(w), "Unknown PE executable")
+		be.Equal(t, w.NE, magicnumber.NoneNE)
 	}
 
-	p, err := os.Open(pathFile(t, filepath.Join("binaries", "windows9x", "7z1604-extra", "x64", "7za.exe")))
+	name := "7za.exe"
+	t.Log(name)
+	r, err := os.Open(pathFile(t, filepath.Join("binaries", "windows9x", "7z1604-extra", "x64", name)))
 	be.Err(t, err, nil)
-	defer p.Close()
-	w, err := magicnumber.FindExecutable(p)
+	defer r.Close()
+	got, err := magicnumber.FindExecutable(r)
 	be.Err(t, err, nil)
-	be.Equal(t, magicnumber.AMD64PE, w.PE)
-	be.Equal(t, 4, w.Major)
-	be.Equal(t, 0, w.Minor)
-	be.Equal(t, 2016, w.TimeDateStamp.Year())
-	be.Equal(t, "Windows NT v4.0 64-bit", fmt.Sprint(w))
-	be.Equal(t, magicnumber.NoneNE, w.NE)
+	be.Equal(t, got.PE, magicnumber.AMD64PE)
+	be.Equal(t, 4, got.Major, 4)
+	be.Equal(t, 0, got.Minor, 0)
+	be.Equal(t, 2016, got.TimeDateStamp.Year(), 2016)
+	be.Equal(t, fmt.Sprint(got), "Windows NT v4.0 64-bit")
+	be.Equal(t, got.NE, magicnumber.NoneNE)
 }

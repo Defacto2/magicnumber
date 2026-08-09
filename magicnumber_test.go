@@ -223,6 +223,7 @@ func TestFind(t *testing.T) {
 			return nil
 		}
 
+		t.Log(ext, got, path, info.Name(), info.Size())
 		switch ext {
 		case ".COM":
 			// do not test as it returns different results based on the file

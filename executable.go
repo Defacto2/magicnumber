@@ -3,7 +3,6 @@ package magicnumber
 // Package file executable.go contains the functions that parse Microsoft and IBM system executable files.
 
 import (
-	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -43,49 +42,55 @@ func Pksfx(r io.ReaderAt) bool {
 // DosKWAJ returns true if the reader begins with the KWAJ compression signature,
 // found in some DOS executables.
 func DosKWAJ(r io.ReaderAt) bool {
-	const size = 8
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	return bytes.Equal(p, []byte{'K', 'W', 'A', 'J', 0x88, 0xf0, 0x27, 0xd1})
+
+	var p [8]byte
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 8 {
+		return false
+	}
+	return p == [8]byte{'K', 'W', 'A', 'J', 0x88, 0xf0, 0x27, 0xd1}
 }
 
 // DosSZDD returns true if the reader begins with the SZDD compression signature.
 func DosSZDD(r io.ReaderAt) bool {
-	const size = 8
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	return bytes.Equal(p, []byte{'S', 'Z', 'D', 'D', 0x88, 0xf0, 0x27, 0x33})
+
+	var p [8]byte
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 8 {
+		return false
+	}
+	return p == [8]byte{'S', 'Z', 'D', 'D', 0x88, 0xf0, 0x27, 0x33}
 }
 
 // MSExe returns true if the reader begins with the Microsoft executable signature.
 func MSExe(r io.ReaderAt) bool {
-	const size = 2
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	if len(p) < size {
+
+	var p [2]byte
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 2 {
 		return false
 	}
-	return p[0] == 'M' && p[1] == 'Z' || p[0] == 'Z' && p[1] == 'M'
+
+	return (p[0] == 'M' && p[1] == 'Z') || (p[0] == 'Z' && p[1] == 'M')
 }
 
 // MSComp returns true if the reader contains the Microsoft Compound File signature.
 func MSComp(r io.ReaderAt) bool {
-	const size = 8
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	return bytes.Equal(p, []byte{0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1})
+
+	var p [8]byte
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 8 {
+		return false
+	}
+	return p == [8]byte{0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1}
 }
 
 // Windows represents the Windows specific information in the executable header.
@@ -109,52 +114,59 @@ func (w Windows) String() string {
 		return fmt.Sprintf("%s v%d.%d", w.NE, w.Major, w.Minor)
 	case UnknownNE:
 		return "Unknown NE executable"
-	}
-	switch {
-	case w.Major == Windows2x && w.NE == Windows286Exe:
-		return fmt.Sprintf("Windows/286 v%d.%d", w.Major, w.Minor)
-	case w.Major == Windows2x && w.NE == Windows386Exe:
-		return fmt.Sprintf("Windows/386 v%d.%d", w.Major, w.Minor)
-	case w.NE == Windows286Exe:
+	case Windows286Exe:
+		if w.Major == Windows2x {
+			return fmt.Sprintf("Windows/286 v%d.%d", w.Major, w.Minor)
+		}
 		return fmt.Sprintf("Windows v%d.%d for 286", w.Major, w.Minor)
-	case w.NE == Windows386Exe:
+	case Windows386Exe:
+		if w.Major == Windows2x {
+			return fmt.Sprintf("Windows/386 v%d.%d", w.Major, w.Minor)
+		}
 		return fmt.Sprintf("Windows v%d.%d for 386+", w.Major, w.Minor)
 	}
-	switch {
-	case w.PE == Intel386PE && w.Major < WindowsNTv3:
-		// this is a guess, as Windows 95/98/ME are not part of the NT family
-		return "Windows 95/98/ME"
-	case w.PE == Intel386PE && w.Major <= WindowsNT:
-		return fmt.Sprintf("Windows NT v%d.%d", w.Major, w.Minor)
+	if w.PE == Intel386PE {
+		if w.Major < WindowsNTv3 {
+			return "Windows 95/98/ME"
+		}
+		if w.Major <= WindowsNT {
+			return fmt.Sprintf("Windows NT v%d.%d", w.Major, w.Minor)
+		}
 	}
+
 	os := fmt.Sprintf("Windows NT v%d.%d", w.Major, w.Minor)
-	for name, ver := range WindowsNames() {
-		if w.Major == ver[0] && w.Minor == ver[1] {
+	for name, v := range windows {
+		major, minor := v[0], v[1]
+		if w.Major == major && w.Minor == minor {
 			os = name
 			break
 		}
 	}
+
 	return pe(w.PE, w.PE64, os)
 }
 
 func pe(pe PortableExecutable, pe64 bool, os string) string {
-	switch {
-	case pe == UnknownPE && pe64:
-		return "Unknown PE+ executable"
-	case pe == UnknownPE:
+	switch pe {
+	case UnknownPE:
+		if pe64 {
+			return "Unknown PE+ executable"
+		}
 		return "Unknown PE executable"
-	case pe == Intel386PE:
+	case Intel386PE:
 		return os + " 32-bit"
-	case pe == AMD64PE:
+	case AMD64PE:
 		return os + " 64-bit"
-	case pe == ARMPE:
+	case ARMPE:
 		return os + " for ARM"
-	case pe == ARM64PE:
+	case ARM64PE:
 		return os + " for ARM64"
-	case pe == ItaniumPE:
+	case ItaniumPE:
 		return os + " for Itanium"
+	default:
+		// safe fallback for obscure/unlisted architectures
+		return fmt.Sprintf("%s (%v)", os, pe)
 	}
-	return ""
 }
 
 // WindowsName represents the Windows version names and their minimum version numbers.
@@ -167,16 +179,18 @@ type WindowsName map[string][2]int
 // The minimum version numbers were discontinued by Microsoft in Windows 8.1 and
 // may not be accurate for modern programs.
 func WindowsNames() WindowsName {
-	return WindowsName{
-		"Windows 2000":                        {5, 0},
-		"Windows XP":                          {5, 1},
-		"Windows XP Professional x64 Edition": {5, 2},
-		"Windows Vista":                       {6, 0},
-		"Windows 7":                           {6, 1},
-		"Windows 8":                           {6, 2},
-		"Windows 8.1":                         {6, 3},
-		"Windows 10":                          {10, 0},
-	}
+	return windows
+}
+
+var windows = WindowsName{ //nolint:gochecknoglobals
+	"Windows 2000":                        {5, 0},
+	"Windows XP":                          {5, 1},
+	"Windows XP Professional x64 Edition": {5, 2},
+	"Windows Vista":                       {6, 0},
+	"Windows 7":                           {6, 1},
+	"Windows 8":                           {6, 2},
+	"Windows 8.1":                         {6, 3},
+	"Windows 10":                          {10, 0},
 }
 
 // NewExecutable represents the New Executable file type, a format used by Microsoft and IBM
@@ -224,23 +238,30 @@ const (
 	ItaniumPE  PortableExecutable = 0x200  // Itanium Portable Executable
 )
 
-// FindExecutable reads the first 1KB from the reader and returns the specific information contained
+// FindExecutable reads the first 3KB from the reader and returns the specific information contained
 // within the executable headers. Both the New Executable and Portable Executable formats are supported,
 // which are commonly used by IBM and Microsoft desktop operating systems from PC/MS-DOS to modern Windows.
 func FindExecutable(r io.ReaderAt) (Windows, error) {
+	const format = "find executable first %d bytes: %w"
 	win := Default()
 	if r == nil {
 		return win, ErrNilReader
 	}
+
 	const size = 1024 * 3
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if _, err := sr.Read(p); err != nil {
-		return win, fmt.Errorf("magic number find first %d bytes: %w", size, err)
+	var p [size]byte
+	n, err := r.ReadAt(p[:], 0)
+	if err != nil && err != io.EOF {
+		return win, fmt.Errorf(format, size, err)
 	}
-	win = NE(p)
+	if n == 0 {
+		return win, fmt.Errorf(format, size, io.ErrUnexpectedEOF)
+	}
+
+	s := p[:n]
+	win = NE(s)
 	if win.NE == NoneNE {
-		win = PE(p)
+		win = PE(s)
 	}
 	return win, nil
 }
@@ -267,39 +288,41 @@ func Default() Windows {
 // for example, a Windows 3.0 requirement would return 3 and 0.
 func NE(p []byte) Windows {
 	none := Default()
-	const minimum = 64
-	if len(p) < minimum {
+
+	// DOS header must be at least 62 bytes to contain e_lfanew at 0x3c
+	const minDOSHead = 0x3c + 2
+	if len(p) < minDOSHead {
 		return none
 	}
 	if p[0] != 'M' || p[1] != 'Z' {
 		return none
 	}
-	const segmentedHeaderIndex = 0x3c // the location of the segmented header
-	const executableTypeIndex = 0x36  // the executable type aka the operating system
-	const winMinorIndex = 0x3e        // the location of the Windows minor version
-	const winMajorIndex = 0x3f        // the location of the Windows major version
-	offset := binary.LittleEndian.Uint16(p[segmentedHeaderIndex:])
-	if len(p) < int(offset)+int(winMajorIndex) {
+
+	const (
+		segmentedHeaderIndex = 0x3c     // the location of the segmented header
+		executableTypeIndex  = 0x36     // the executable type aka the operating system
+		winMinorIndex        = 0x3e     // the location of the Windows minor version
+		winMajorIndex        = 0x3f     // the location of the Windows major version
+		minNEHead            = 0x3f + 1 // minimum bytes required relative to NE header offset
+	)
+
+	offset := int(binary.LittleEndian.Uint16(p[segmentedHeaderIndex:]))
+	if len(p) < offset+minNEHead {
 		return none
 	}
-	segmentedHeader := [2]byte{
-		p[offset+0],
-		p[offset+1],
-	}
-	if segmentedHeader != [2]byte{'N', 'E'} {
+	if p[offset] != 'N' || p[offset+1] != 'E' {
 		return none
 	}
-	minor := int(p[offset+winMinorIndex])
-	major := int(p[offset+winMajorIndex])
-	newType := NewExecutable(p[offset+executableTypeIndex])
-	w := Windows{}
-	switch newType {
+	newExec := NewExecutable(p[offset+executableTypeIndex])
+	switch newExec {
 	case Windows286Exe, Windows386Exe, OS2Exe, DOSv4Exe, UnknownNE:
-		w.Major = major
-		w.Minor = minor
-		w.NE = newType
-		return w
+		return Windows{
+			Major: int(p[offset+winMajorIndex]),
+			Minor: int(p[offset+winMinorIndex]),
+			NE:    newExec,
+		}
 	}
+
 	return none
 }
 
@@ -314,69 +337,62 @@ func NE(p []byte) Windows {
 // [Portable Executable format]: https://learn.microsoft.com/en-us/windows/win32/debug/pe-format
 func PE(p []byte) Windows {
 	none := Default()
-	const minimum = 64
-	if len(p) < minimum {
+
+	// DOS header must be at least 64 bytes to contain e_lfanew at 0x3c
+	const minDOSHead = 0x3c + 4
+	if len(p) < minDOSHead {
 		return none
 	}
 	if p[0] != 'M' || p[1] != 'Z' {
 		return none
 	}
-	// the location of the portable executable header
-	const peHeaderIndex = 0x3c
-	offset := binary.LittleEndian.Uint16(p[peHeaderIndex:])
-	if len(p) < int(offset) {
+
+	const peHead = 0x3c
+	off := int(binary.LittleEndian.Uint32(p[peHead:]))
+	const peLen = 4 + 20 + 2
+	if off < 0 || len(p) < off+peLen {
+		return none
+	}
+	if p[off] != 'P' || p[off+1] != 'E' || p[off+2] != 0 || p[off+3] != 0 {
 		return none
 	}
 
-	signature := [4]byte{p[offset+0], p[offset+1], p[offset+2], p[offset+3]}
-	if signature != [4]byte{'P', 'E', 0, 0} {
+	const index = 4
+	coffIndex := off + index
+	machine := binary.LittleEndian.Uint16(p[coffIndex:])
+	sec := int64(binary.LittleEndian.Uint32(p[coffIndex+4:]))
+	compiled := time.Unix(sec, 0)
+
+	const coffHead = 20
+	optIndex := coffIndex + coffHead
+	magic := binary.LittleEndian.Uint16(p[optIndex:])
+
+	const (
+		majorOff = 40
+		minorOff = 42
+	)
+	if len(p) < optIndex+minorOff+2 {
 		return none
 	}
-	// the location of the COFF (Common Object File Format) header
-	coffHeaderIndex := offset + uint16(len(signature))
-	const coffLen = 20
-	if len(p) < int(coffHeaderIndex)+coffLen {
-		return none
-	}
-	machine := [2]byte{p[coffHeaderIndex], p[coffHeaderIndex+1]}
-	timeDateStamp := binary.LittleEndian.Uint32(p[coffHeaderIndex+4:])
-	compiled := time.Unix(int64(timeDateStamp), 0)
+	major := int(binary.LittleEndian.Uint16(p[optIndex+majorOff:]))
+	minor := int(binary.LittleEndian.Uint16(p[optIndex+minorOff:]))
 
-	optionalHeaderIndex := coffHeaderIndex + coffLen
-	magic := [2]byte{p[optionalHeaderIndex+0], p[optionalHeaderIndex+1]}
-
-	const winMajorOffset = 40 // the location of the Windows major version
-	const winMinorOffset = 42 // the location of the Windows minor version
-	major := optionalHeaderIndex + winMajorOffset
-	osMajorB := []byte{p[major+0], p[major+1]}
-	minor := optionalHeaderIndex + winMinorOffset
-	osMinorB := []byte{p[minor+0], p[minor+1]}
-	osMajor := int(binary.LittleEndian.Uint16(osMajorB))
-	osMinor := int(binary.LittleEndian.Uint16(osMinorB))
-	w := Windows{
-		Major:         osMajor,
-		Minor:         osMinor,
+	const pe32Plus = 0x020b
+	return Windows{
+		Major:         major,
+		Minor:         minor,
 		TimeDateStamp: compiled,
-		PE64:          magic == [2]byte{0x0b, 0x02},
+		PE:            exec(machine),
+		PE64:          magic == pe32Plus,
 		NE:            NoneNE,
 	}
-	pem := binary.LittleEndian.Uint16(machine[:])
-	w.PE = portexec(pem)
-	return w
 }
 
-func portexec(pem uint16) PortableExecutable {
-	switch PortableExecutable(pem) {
-	case Intel386PE:
-		return Intel386PE
-	case AMD64PE:
-		return AMD64PE
-	case ARMPE:
-		return ARMPE
-	case ARM64PE:
-		return ARM64PE
-	case ItaniumPE:
-		return ItaniumPE
+func exec(pem uint16) PortableExecutable {
+	pe := PortableExecutable(pem)
+	switch pe {
+	case Intel386PE, AMD64PE, ARMPE, ARM64PE, ItaniumPE:
+		return pe
 	default:
 		return UnknownPE
 	}
