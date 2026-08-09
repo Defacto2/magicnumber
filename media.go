@@ -179,24 +179,31 @@ func Gif(r io.ReaderAt) bool {
 	return s == gif87a || s == gif89a
 }
 
-// Ico matches the Microsoft Icon image format.
+// Ico matches the Microsoft Icon image and cursor image formats.
 func Ico(r io.ReaderAt) bool {
 	if r == nil {
 		return false
 	}
 
-	var p [6]byte
-	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 6 {
+	var p [10]byte
+	n, err := r.ReadAt(p[:], 0)
+	if (err != nil && err != io.EOF) || n < 6 {
 		return false
 	}
 	if p[0] != 0x00 || p[1] != 0x00 {
 		return false
 	}
-	if p[2] != 0x01 || p[3] != 0x00 {
+	if (p[2] != 0x01 && p[2] != 0x02) || p[3] != 0x00 {
 		return false
 	}
 	images := uint16(p[4]) | uint16(p[5])<<8 //nolint:mnd
-	return images > 0
+	if images == 0 {
+		return false
+	}
+	if n >= 10 && p[9] != 0x00 {
+		return false
+	}
+	return true
 }
 
 // Iff matches the Interchange File Format image.
@@ -673,7 +680,7 @@ func Mpeg(r io.ReaderAt) bool {
 	}
 	// check for valid mpeg start codes
 	code := p[3]
-	return code == 0xb3 || code == 0x00 || (code >= 0xba && code <= 0xbf)
+	return code == 0xb3 || code == 0xba
 }
 
 // Ogg matches the Ogg Vorbis audio format.

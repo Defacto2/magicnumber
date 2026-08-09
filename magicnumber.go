@@ -491,7 +491,8 @@ func MatchExt(filename string, r io.ReaderAt) (bool, Signature, error) {
 
 // Find returns the file type signature from the byte slice.
 func Find(r io.ReaderAt) Signature {
-	return FindW(io.Discard, r)
+	w := io.Discard
+	return FindW(w, r)
 }
 
 // FindW returns the file type signature from the byte slice.
@@ -505,13 +506,22 @@ func FindW(w io.Writer, r io.ReaderAt) Signature {
 		return ZeroByte
 	}
 	matchers := *New()
+	skip := [2]Signature{ARChiveSEA, ElectronicArtsIFF}
 	for sign, matcher := range matchers {
+		if slices.Contains(skip[:], sign) {
+			continue
+		}
 		if matcher(r) {
 			fmt.Fprintf(w, name+" matchers sign: %s\n", sign)
 			return sign
 		}
 	}
 	switch {
+	// do manual, ordered checks here to avoid false positives.
+	case Iff(r): // conflicts with other IFF containers
+		return ElectronicArtsIFF
+	case ArcSEA(r): // conflicts with NoGatePAK
+		return ARChiveSEA
 	case AnsiW(w, r):
 		fmt.Fprintf(w, "%s matched ansi: '%s'\n", name, ANSIEscapeText)
 		return ANSIEscapeText
@@ -535,10 +545,8 @@ func Empty(r io.ReaderAt) bool {
 	if r == nil {
 		return true
 	}
-	p := make([]byte, 1)
-	sr := io.NewSectionReader(r, 0, 1)
-	if n, err := sr.Read(p); err != nil || n < 1 {
-		return true
-	}
-	return false
+
+	var p [1]byte
+	n, err := r.ReadAt(p[:], 0)
+	return n == 0 || err != nil
 }

@@ -153,6 +153,7 @@ func Images() []Signature {
 		MicrosoftIcon,
 		RIPscrip,
 		ElectronicArtsAnim,
+		ElectronicArtsIFF,
 	}
 }
 
