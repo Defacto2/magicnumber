@@ -10,16 +10,22 @@ import (
 
 func TestMediaIcon(t *testing.T) {
 	t.Parallel()
-	r, err := os.Open(uncompress(icoFile))
+	r, err := os.Open(pathUncompress(t, icoFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Ico(r))
-	be.Equal(t, magicnumber.Find(r), magicnumber.MicrosoftIcon)
+
+	got := magicnumber.Find(r)
+	const want = magicnumber.MicrosoftIcon
+	be.Equal(t, got, want)
+	if got != want {
+		t.Fatalf(Format, got, got, want, want)
+	}
 }
 
 func TestMediaAVIF(t *testing.T) {
 	t.Parallel()
-	r, err := os.Open(uncompress(avifFile))
+	r, err := os.Open(pathUncompress(t, avifFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Avif(r))
@@ -28,7 +34,7 @@ func TestMediaAVIF(t *testing.T) {
 
 func TestMediaBMP(t *testing.T) {
 	t.Parallel()
-	r, err := os.Open(uncompress(bmpFile))
+	r, err := os.Open(pathUncompress(t, bmpFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Bmp(r))
@@ -38,13 +44,13 @@ func TestMediaBMP(t *testing.T) {
 func TestMediaGif(t *testing.T) {
 	t.Parallel()
 
-	r, err := os.Open(uncompress(gifFile))
+	r, err := os.Open(pathUncompress(t, gifFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Gif(r))
 	be.Equal(t, magicnumber.Find(r), magicnumber.GraphicsInterchangeFormat)
 
-	r, err = os.Open(uncompress(gif2File))
+	r, err = os.Open(pathUncompress(t, gif2File))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Gif(r))
@@ -54,13 +60,18 @@ func TestMediaGif(t *testing.T) {
 func TestMediaIlbm(t *testing.T) {
 	t.Parallel()
 
-	r, err := os.Open(uncompress(ilbmFile))
+	r, err := os.Open(pathUncompress(t, ilbmFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Ilbm(r))
-	be.Equal(t, magicnumber.Find(r), magicnumber.InterleavedBitmap)
+	got := magicnumber.Find(r)
+	const want = magicnumber.InterleavedBitmap
+	be.Equal(t, got, want)
+	if got != want {
+		t.Fatalf(Format, got, got, want, want)
+	}
 
-	r, err = os.Open(uncompress(amigaIFF))
+	r, err = os.Open(pathUncompress(t, amigaIFF))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Ilbm(r))
@@ -73,13 +84,13 @@ func TestMediaIlbm(t *testing.T) {
 func TestMediaJpeg(t *testing.T) {
 	t.Parallel()
 
-	r, err := os.Open(uncompress(jpgFile))
+	r, err := os.Open(pathUncompress(t, jpgFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Jpeg(r))
 	be.Equal(t, magicnumber.Find(r), magicnumber.JPEGFileInterchangeFormat)
 
-	r, err = os.Open(uncompress(jpegFile))
+	r, err = os.Open(pathUncompress(t, jpegFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Jpeg(r))
@@ -88,7 +99,7 @@ func TestMediaJpeg(t *testing.T) {
 
 func TestMediaPCX(t *testing.T) {
 	t.Parallel()
-	r, err := os.Open(uncompress(pcxFile))
+	r, err := os.Open(pathUncompress(t, pcxFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Pcx(r))
@@ -97,7 +108,7 @@ func TestMediaPCX(t *testing.T) {
 
 func TestMediaPNG(t *testing.T) {
 	t.Parallel()
-	r, err := os.Open(uncompress(pngFile))
+	r, err := os.Open(pathUncompress(t, pngFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Png(r))
@@ -109,7 +120,7 @@ func TestMediaPNG(t *testing.T) {
 
 func TestMediaWebp(t *testing.T) {
 	t.Parallel()
-	r, err := os.Open(uncompress(webpFile))
+	r, err := os.Open(pathUncompress(t, webpFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Webp(r))
@@ -118,7 +129,7 @@ func TestMediaWebp(t *testing.T) {
 
 func TestMediaWave(t *testing.T) {
 	t.Parallel()
-	r, err := os.Open(mp3file(wavFile))
+	r, err := os.Open(pathMp3(t, wavFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Wave(r))
@@ -127,7 +138,7 @@ func TestMediaWave(t *testing.T) {
 
 func TestMediaMP3(t *testing.T) {
 	t.Parallel()
-	r, err := os.Open(mp3file(mp3File))
+	r, err := os.Open(pathMp3(t, mp3File))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Mp3(r))
@@ -136,7 +147,7 @@ func TestMediaMP3(t *testing.T) {
 
 func TestMediaOGG(t *testing.T) {
 	t.Parallel()
-	r, err := os.Open(mp3file(oggFile))
+	r, err := os.Open(pathMp3(t, oggFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Ogg(r))
@@ -145,7 +156,7 @@ func TestMediaOGG(t *testing.T) {
 
 func TestMediaWMA(t *testing.T) {
 	t.Parallel()
-	r, err := os.Open(mp3file(wmaFile))
+	r, err := os.Open(pathMp3(t, wmaFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Wmv(r))
@@ -157,7 +168,7 @@ func TestMediaWMA(t *testing.T) {
 
 func TestMediaFlac(t *testing.T) {
 	t.Parallel()
-	r, err := os.Open(mp3file("TEST.flac"))
+	r, err := os.Open(pathMp3(t, "TEST.flac"))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Flac(r))

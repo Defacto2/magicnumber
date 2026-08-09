@@ -17,7 +17,7 @@ const (
 func TestDaa(t *testing.T) {
 	t.Parallel()
 	t.Log("TestDaa")
-	r, err := os.Open(imgfile(DaaFile))
+	r, err := os.Open(pathDisc(t, DaaFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Daa(r))
@@ -37,7 +37,7 @@ func TestDaa(t *testing.T) {
 func TestCDISO(t *testing.T) {
 	t.Parallel()
 	t.Log("TestCDISO")
-	r, err := os.Open(imgfile(ISOFile))
+	r, err := os.Open(pathDisc(t, ISOFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.ISO(r))
@@ -54,7 +54,7 @@ func TestCDISO(t *testing.T) {
 func TestMdf(t *testing.T) {
 	t.Parallel()
 	t.Log("TestMdf")
-	r, err := os.Open(imgfile(MdfFile))
+	r, err := os.Open(pathDisc(t, MdfFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Mdf(r))

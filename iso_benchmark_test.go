@@ -9,7 +9,7 @@ import (
 
 // BenchmarkISODetection measures the performance of ISO 9660 detection.
 func BenchmarkISODetection(b *testing.B) {
-	f, err := os.Open(imgfile("uncompress.iso"))
+	f, err := os.Open(pathDisc(b, "uncompress.iso"))
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -29,7 +29,7 @@ func BenchmarkISODetection(b *testing.B) {
 
 // BenchmarkISOFind measures the performance of ISO detection through the Find function.
 func BenchmarkISOFind(b *testing.B) {
-	f, err := os.Open(imgfile("uncompress.iso"))
+	f, err := os.Open(pathDisc(b, "uncompress.iso"))
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -48,7 +48,7 @@ func BenchmarkISOFind(b *testing.B) {
 
 // BenchmarkISODiscImage measures the performance of ISO detection through the DiscImage function.
 func BenchmarkISODiscImage(b *testing.B) {
-	f, err := os.Open(imgfile("uncompress.iso"))
+	f, err := os.Open(pathDisc(b, "uncompress.iso"))
 	if err != nil {
 		b.Fatal(err)
 	}

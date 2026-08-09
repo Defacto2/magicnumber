@@ -47,6 +47,8 @@ const (
 	wmaFile    = "TEST.wma"
 )
 
+const Format = "magic number find false positive, got %s (%d) not %s (%d)"
+
 // _exampleReadme matches the README.md example and is used to lint and validate the syntax.
 func _exampleReadme() { //nolint:unused
 	w := os.Stdout
@@ -127,74 +129,79 @@ func ExampleFindExecutable() {
 
 var ErrCaller = errors.New("runtime caller failed")
 
-func uncompress(name string) string {
+const testdata = "testdata"
+
+func pathUncompress(tb testing.TB, name string) string {
+	tb.Helper()
 	_, file, _, usable := runtime.Caller(0)
 	if !usable {
-		panic("runtime.Caller failed")
+		tb.Fatal(ErrCaller)
 	}
 	d := filepath.Dir(file)
-	x := filepath.Join(d, "testdata", "uncompress", name)
+	const uncompress = "uncompress"
+	x := filepath.Join(d, testdata, uncompress, name)
 	return x
 }
 
-func mp3file(name string) string {
+func pathMp3(tb testing.TB, name string) string {
+	tb.Helper()
 	_, file, _, usable := runtime.Caller(0)
 	if !usable {
-		panic("runtime.Caller failed")
+		tb.Fatal(ErrCaller)
 	}
 	d := filepath.Dir(file)
-	x := filepath.Join(d, "testdata", "mp3", name)
-	return x
+	const mp3 = "mp3"
+	return filepath.Join(d, testdata, mp3, name)
 }
 
-func imgfile(name string) string {
+func pathDisc(tb testing.TB, name string) string {
+	tb.Helper()
 	_, file, _, usable := runtime.Caller(0)
 	if !usable {
-		panic("runtime.Caller failed")
+		tb.Fatal(ErrCaller)
 	}
 	d := filepath.Dir(file)
-	x := filepath.Join(d, "testdata", "discimages", name)
-	return x
+	const discimages = "discimages"
+	return filepath.Join(d, testdata, discimages, name)
 }
 
-func tdfile(t *testing.T, name string) string {
-	t.Helper()
+func pathFile(tb testing.TB, name string) string {
+	tb.Helper()
 	_, file, _, usable := runtime.Caller(0)
 	if !usable {
-		t.Fatal(ErrCaller)
+		tb.Fatal(ErrCaller)
 	}
 	d := filepath.Dir(file)
-	x := filepath.Join(d, "testdata", name)
-	return x
+	return filepath.Join(d, testdata, name)
 }
 
 func TestUnknowns(t *testing.T) {
 	t.Parallel()
 
-	data := "some binary data"
-	nr := strings.NewReader(data)
-	sign, err := magicnumber.Archive(nr)
+	s := "some binary data"
+	r := strings.NewReader(s)
+	got, err := magicnumber.Archive(r)
 	be.Err(t, err, nil)
-	be.Equal(t, magicnumber.Unknown, sign)
-	be.Equal(t, sign.String(), "binary data or text")
-	be.Equal(t, sign.Title(), "Binary data or binary text")
+	be.Equal(t, got, magicnumber.Unknown)
+	be.Equal(t, got.String(), "binary data or text")
+	be.Equal(t, got.Title(), "Binary data or binary text")
 
-	b, sign, err := magicnumber.MatchExt(emptyFile, nr)
+	b, got, err := magicnumber.MatchExt(emptyFile, r)
 	be.Err(t, err, nil)
 	be.True(t, !b)
-	be.Equal(t, magicnumber.PlainText, sign)
+	be.Equal(t, got, magicnumber.PlainText)
 
-	r, err := os.Open(uncompress(emptyFile))
+	f, err := os.Open(pathUncompress(t, emptyFile))
 	be.Err(t, err, nil)
-	defer r.Close()
-	sign = magicnumber.Find(r)
-	be.Equal(t, magicnumber.ZeroByte, sign)
+	defer f.Close()
+	got = magicnumber.Find(f)
+	be.Equal(t, got, magicnumber.ZeroByte)
 }
 
 func TestFind(t *testing.T) {
 	t.Parallel()
 	// walk the assets directory
-	err := filepath.Walk(tdfile(t, ""), func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(pathFile(t, ""), func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -203,16 +210,16 @@ func TestFind(t *testing.T) {
 			return nil
 		}
 		base := filepath.Base(path)
-		skip := []string{"SAMPLE.DAT", "uncompress.bin"}
-		if slices.Contains(skip, base) {
+		skip := [2]string{"SAMPLE.DAT", "uncompress.bin"}
+		if slices.Contains(skip[:], base) {
 			return nil
 		}
 		f, err := os.Open(path) //nolint:gosec
 		be.Err(t, err, nil)
 		defer f.Close()
-		sign := magicnumber.Find(f)
+		got := magicnumber.Find(f)
 		if base == "τεχτƒιℓε.τχτ" {
-			be.Equal(t, magicnumber.PlainText, sign)
+			be.Equal(t, got, magicnumber.PlainText)
 			return nil
 		}
 
@@ -221,87 +228,88 @@ func TestFind(t *testing.T) {
 			// do not test as it returns different results based on the file
 			return nil
 		case ".7Z":
-			be.Equal(t, magicnumber.X7zCompressArchive, sign)
+			be.Equal(t, got, magicnumber.X7zCompressArchive)
 		case ".ANS":
-			be.Equal(t, magicnumber.ANSIEscapeText, sign)
+			be.Equal(t, got, magicnumber.ANSIEscapeText)
 		case ".ARC":
 			// two different signatures used for the same file extension
-			be.True(t, slices.Contains([]magicnumber.Signature{
+			s := [2]magicnumber.Signature{
 				magicnumber.FreeArc, magicnumber.ARChiveSEA,
-			}, sign))
+			}
+			be.True(t, slices.Contains(s[:], got))
 		case ".ARJ":
-			be.Equal(t, magicnumber.ArchiveRobertJung, sign)
+			be.Equal(t, got, magicnumber.ArchiveRobertJung)
 		case ".AVIF":
-			be.Equal(t, magicnumber.AV1ImageFile, sign)
+			be.Equal(t, got, magicnumber.AV1ImageFile)
 		case ".BAT", ".INI", ".CUE":
-			be.Equal(t, magicnumber.PlainText, sign)
+			be.Equal(t, got, magicnumber.PlainText)
 		case ".BMP":
-			be.Equal(t, magicnumber.BMPFileFormat, sign)
+			be.Equal(t, got, magicnumber.BMPFileFormat)
 		case ".BZ2":
-			be.Equal(t, magicnumber.Bzip2CompressArchive, sign)
+			be.Equal(t, got, magicnumber.Bzip2CompressArchive)
 		case ".CHM", ".HLP":
-			be.Equal(t, magicnumber.WindowsHelpFile, sign)
+			be.Equal(t, got, magicnumber.WindowsHelpFile)
 		case ".DAA":
-			be.Equal(t, magicnumber.CDPowerISO, sign)
+			be.Equal(t, got, magicnumber.CDPowerISO)
 		case ".EXE", ".DLL":
-			be.Equal(t, magicnumber.MicrosoftExecutable, sign)
+			be.Equal(t, got, magicnumber.MicrosoftExecutable)
 		case ".GIF":
-			be.Equal(t, magicnumber.GraphicsInterchangeFormat, sign)
+			be.Equal(t, got, magicnumber.GraphicsInterchangeFormat)
 		case ".GZ":
-			be.Equal(t, magicnumber.GzipCompressArchive, sign)
+			be.Equal(t, got, magicnumber.GzipCompressArchive)
 		case ".JPG", ".JPEG":
-			be.Equal(t, magicnumber.JPEGFileInterchangeFormat, sign)
+			be.Equal(t, got, magicnumber.JPEGFileInterchangeFormat)
 		case ".ICO":
-			be.Equal(t, magicnumber.MicrosoftIcon, sign)
+			be.Equal(t, got, magicnumber.MicrosoftIcon)
 		case ".IFF":
-			be.Equal(t, magicnumber.InterleavedBitmap, sign)
+			be.Equal(t, got, magicnumber.InterleavedBitmap)
 		case ".ISO":
-			be.Equal(t, magicnumber.CDISO9660, sign)
+			be.Equal(t, got, magicnumber.CDISO9660)
 		case ".LZH":
-			be.Equal(t, magicnumber.YoshiLHA, sign)
+			be.Equal(t, got, magicnumber.YoshiLHA)
 		case ".MP3":
 			// do not test as it returns different results based on the file's ID3 tag
 			return nil
 		case ".PAK":
-			be.Equal(t, magicnumber.NoGatePAK, sign)
+			be.Equal(t, got, magicnumber.NoGatePAK)
 		case ".PCX":
-			be.Equal(t, magicnumber.PersonalComputereXchange, sign)
+			be.Equal(t, got, magicnumber.PersonalComputereXchange)
 		case ".PNG":
-			be.Equal(t, magicnumber.PortableNetworkGraphics, sign)
+			be.Equal(t, got, magicnumber.PortableNetworkGraphics)
 		case ".RAR":
-			signs := []magicnumber.Signature{
+			signs := [2]magicnumber.Signature{
 				magicnumber.RoshalARchivev5,
 				magicnumber.RoshalARchive,
 			}
-			be.True(t, slices.Contains(signs, sign))
+			be.True(t, slices.Contains(signs[:], got))
 		case ".TAR":
-			be.Equal(t, magicnumber.TapeARchive, sign)
+			be.Equal(t, got, magicnumber.TapeARchive)
 		case ".TXT", ".MD", ".NFO", ".ME", ".DIZ", ".ASC", ".CAP", ".DOC":
-			signs := []magicnumber.Signature{
+			signs := [2]magicnumber.Signature{
 				magicnumber.PlainText,
 				magicnumber.UTF16Text,
 			}
-			be.True(t, slices.Contains(signs, sign))
+			be.True(t, slices.Contains(signs[:], got))
 		case ".WEBP":
-			be.Equal(t, magicnumber.GoogleWebP, sign)
+			be.Equal(t, got, magicnumber.GoogleWebP)
 		case ".XZ":
-			be.Equal(t, magicnumber.XZCompressArchive, sign)
+			be.Equal(t, got, magicnumber.XZCompressArchive)
 		case ".ZIP":
 			if base == "EMPTY.ZIP" {
-				be.Equal(t, magicnumber.ZeroByte, sign)
+				be.Equal(t, got, magicnumber.ZeroByte)
 				return nil
 			}
-			zips := []magicnumber.Signature{
+			zips := [5]magicnumber.Signature{
 				magicnumber.PKWAREZip,
 				magicnumber.PKWAREZip64,
 				magicnumber.PKWAREZipImplode,
 				magicnumber.PKWAREZipReduce,
 				magicnumber.PKWAREZipShrink,
 			}
-			be.True(t, slices.Contains(zips, sign))
+			be.True(t, slices.Contains(zips[:], got))
 		default:
-			be.True(t, magicnumber.Unknown != sign)
-			fmt.Fprintln(os.Stderr, ext, filepath.Base(path), fmt.Sprint(sign))
+			be.True(t, magicnumber.Unknown != got)
+			fmt.Fprintln(os.Stderr, ext, filepath.Base(path), fmt.Sprint(got))
 		}
 
 		return nil

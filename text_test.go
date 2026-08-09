@@ -16,30 +16,30 @@ import (
 
 func TestTextASCII(t *testing.T) {
 	t.Parallel()
-	r, err := os.Open(uncompress(asciiFile))
+	r, err := os.Open(pathUncompress(t, asciiFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.ASCII(r))
 	be.Equal(t, magicnumber.Find(r), magicnumber.PlainText)
 
-	r, err = os.Open(uncompress(txtFile))
+	r, err = os.Open(pathUncompress(t, txtFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.ASCII(r))
 	be.Equal(t, magicnumber.Find(r), magicnumber.PlainText)
 
-	r, err = os.Open(uncompress(gifFile))
+	r, err = os.Open(pathUncompress(t, gifFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, !magicnumber.ASCII(r))
 
-	r, err = os.Open(uncompress(badFile))
+	r, err = os.Open(pathUncompress(t, badFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, !magicnumber.ASCII(r))
 	be.Equal(t, magicnumber.Find(r), magicnumber.PlainText)
 
-	r, err = os.Open(tdfile(t, manualFile))
+	r, err = os.Open(pathFile(t, manualFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 
@@ -60,7 +60,7 @@ func TestTextASCII(t *testing.T) {
 
 func TestTextANSI(t *testing.T) {
 	t.Parallel()
-	r, err := os.Open(uncompress(ansiFile))
+	r, err := os.Open(pathUncompress(t, ansiFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Ansi(r))
@@ -72,18 +72,18 @@ func TestTextANSI(t *testing.T) {
 	be.Err(t, err, nil)
 	be.Equal(t, sign, magicnumber.ANSIEscapeText)
 
-	r, err = os.Open(uncompress(txtFile))
+	r, err = os.Open(pathUncompress(t, txtFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, !magicnumber.Ansi(r))
 	be.Equal(t, magicnumber.Find(r), magicnumber.PlainText)
 
-	r, err = os.Open(uncompress(gifFile))
+	r, err = os.Open(pathUncompress(t, gifFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, !magicnumber.Ansi(r))
 
-	r, err = os.Open(uncompress(badFile))
+	r, err = os.Open(pathUncompress(t, badFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, !magicnumber.Ansi(r))
@@ -106,7 +106,7 @@ func TestTextANSI(t *testing.T) {
 
 func TestTextCSI(t *testing.T) {
 	t.Parallel()
-	r, err := os.Open(uncompress(ansiFile))
+	r, err := os.Open(pathUncompress(t, ansiFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.CSI(r))
@@ -118,18 +118,18 @@ func TestTextCSI(t *testing.T) {
 	be.Err(t, err, nil)
 	be.Equal(t, sign, magicnumber.ANSIEscapeText)
 
-	r, err = os.Open(uncompress(txtFile))
+	r, err = os.Open(pathUncompress(t, txtFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, !magicnumber.CSI(r))
 	be.Equal(t, magicnumber.Find(r), magicnumber.PlainText)
 
-	r, err = os.Open(uncompress(gifFile))
+	r, err = os.Open(pathUncompress(t, gifFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, !magicnumber.CSI(r))
 
-	r, err = os.Open(uncompress(badFile))
+	r, err = os.Open(pathUncompress(t, badFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, !magicnumber.CSI(r))
@@ -152,7 +152,7 @@ func TestTextCSI(t *testing.T) {
 
 func TestTextRTF(t *testing.T) {
 	t.Parallel()
-	r, err := os.Open(uncompress(rtfFile))
+	r, err := os.Open(pathUncompress(t, rtfFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Rtf(r))
@@ -161,7 +161,7 @@ func TestTextRTF(t *testing.T) {
 
 func TestTextPDF(t *testing.T) {
 	t.Parallel()
-	r, err := os.Open(uncompress(pdfFile))
+	r, err := os.Open(pathUncompress(t, pdfFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Pdf(r))
@@ -173,7 +173,7 @@ func TestTextPDF(t *testing.T) {
 
 func TestTextUTF16(t *testing.T) {
 	t.Parallel()
-	r, err := os.Open(uncompress(utf16File))
+	r, err := os.Open(pathUncompress(t, utf16File))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Utf16(r))
@@ -182,7 +182,7 @@ func TestTextUTF16(t *testing.T) {
 
 func TestTextISO7(t *testing.T) {
 	t.Parallel()
-	r, err := os.Open(uncompress(iso7File))
+	r, err := os.Open(pathUncompress(t, iso7File))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, !magicnumber.ASCII(r))
@@ -205,7 +205,7 @@ func TestTextByte(t *testing.T) {
 
 func TestTextCodePage(t *testing.T) {
 	t.Parallel()
-	r, err := os.Open(tdfile(t, "TRIAD.TXT"))
+	r, err := os.Open(pathFile(t, "TRIAD.TXT"))
 	be.Err(t, err, nil)
 	defer r.Close()
 
@@ -224,11 +224,11 @@ func TestTextCodePage(t *testing.T) {
 
 func TestTextBinaries(t *testing.T) {
 	t.Parallel()
-	r, err := os.Open(tdfile(t, "binarytxt.bin"))
+	r, err := os.Open(pathFile(t, "binarytxt.bin"))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, !magicnumber.XBin(r))
-	r, err = os.Open(tdfile(t, "binarytxt.xb"))
+	r, err = os.Open(pathFile(t, "binarytxt.xb"))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.XBin(r))

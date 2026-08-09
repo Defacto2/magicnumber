@@ -10,7 +10,7 @@ import (
 
 func TestSynthMod(t *testing.T) {
 	t.Parallel()
-	r, err := os.Open(uncompress(modFile))
+	r, err := os.Open(pathUncompress(t, modFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.MK(r))
@@ -22,7 +22,7 @@ func TestSynthMod(t *testing.T) {
 
 func TestSynthXM(t *testing.T) {
 	t.Parallel()
-	r, err := os.Open(uncompress(xmFile))
+	r, err := os.Open(pathUncompress(t, xmFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.XM(r))
@@ -34,7 +34,7 @@ func TestSynthXM(t *testing.T) {
 
 func TestSyncIT(t *testing.T) {
 	t.Parallel()
-	r, err := os.Open(uncompress(itFile))
+	r, err := os.Open(pathUncompress(t, itFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.IT(r))
