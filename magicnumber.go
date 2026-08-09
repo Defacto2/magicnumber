@@ -450,7 +450,7 @@ func New() *Finder { //nolint:funlen
 		MicrosoftExecutable:               MSExe,
 		MicrosoftCompoundFile:             MSComp,
 		CDISO9660:                         ISO,
-		CDNero:                            Nri,
+		CDNero:                            Nero,
 		CDPowerISO:                        Daa,
 		CDAlcohol120:                      Mdf,
 		WindowsHelpFile:                   Hlp,
