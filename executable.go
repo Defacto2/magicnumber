@@ -13,27 +13,31 @@ import (
 // Pklite matches the PKLITE archive format in the byte slice which is a
 // compressed executable format for DOS and 16-bit Windows.
 func Pklite(r io.ReaderAt) bool {
-	const size = 6
-	const offset = 30
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, offset, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	return bytes.Equal(p, []byte{0x50, 0x4b, 0x4c, 0x49, 0x54, 0x45})
+
+	var p [6]byte
+	const off = 30
+	if n, err := r.ReadAt(p[:], off); (err != nil && err != io.EOF) || n < 6 {
+		return false
+	}
+	return p == [6]byte{'P', 'K', 'L', 'I', 'T', 'E'}
 }
 
 // Pksfx matches the PKSFX archive format in the byte slice which is a
 // self-extracting archive format.
 func Pksfx(r io.ReaderAt) bool {
-	const size = 5
-	const offset = 526
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, offset, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	return bytes.Equal(p, []byte{0x50, 0x4b, 0x53, 0x70, 0x58})
+
+	var p [5]byte
+	const off = 526
+	if n, err := r.ReadAt(p[:], off); (err != nil && err != io.EOF) || n < 5 {
+		return false
+	}
+	return p == [5]byte{'P', 'K', 'S', 'F', 'X'}
 }
 
 // DosKWAJ returns true if the reader begins with the KWAJ compression signature,
