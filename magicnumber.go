@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 )
 
 var ErrNilReader = errors.New("nil reader")
@@ -381,6 +382,10 @@ type Matcher func(io.ReaderAt) bool
 // Finder is a map of file type signatures to matchers.
 type Finder map[Signature]Matcher
 
+var defaultFinder = sync.OnceValue(func() Finder { //nolint:gochecknoglobals
+	return *New() // stores a copy of the Finder map
+})
+
 // New returns a new Finder with all the matchers.
 //
 // ANSIEscapeText and PlainText are not included as they need to be
@@ -471,21 +476,29 @@ func New() *Finder { //nolint:funlen
 // A PNG encoded image using the filename TEST.JPG will return false
 // and the PortableNetworkGraphics signature.
 func MatchExt(filename string, r io.ReaderAt) (bool, Signature, error) {
-	if Empty(r) {
+	if r == nil {
 		return false, Unknown, ErrNilReader
 	}
+	if Empty(r) {
+		return false, ZeroByte, nil
+	}
+
 	ext := strings.ToLower(filepath.Ext(filename))
-	finds := New()
+	if ext == "" {
+		return false, Find(r), nil
+	}
+
+	finder := defaultFinder()
+
 	for signature, exts := range *Ext() {
 		if !slices.Contains(exts, ext) {
 			continue
 		}
-		for find, matcher := range *finds {
-			if matcher(r) && find == signature {
-				return true, find, nil
-			}
+		if matcher, ok := finder[signature]; ok && matcher(r) {
+			return true, signature, nil
 		}
 	}
+
 	return false, Find(r), nil
 }
 
@@ -515,10 +528,13 @@ func FindWithLogger(sl *slog.Logger, r io.ReaderAt) Signature {
 	if sl == nil {
 		sl = slog.New(slog.DiscardHandler)
 	}
+	if r == nil {
+		return Unknown
+	}
 	if Empty(r) {
 		return ZeroByte
 	}
-	matchers := *New()
+	matchers := defaultFinder()
 	skip := [2]Signature{ARChiveSEA, ElectronicArtsIFF}
 	for sign, matcher := range matchers {
 		if slices.Contains(skip[:], sign) {
@@ -553,7 +569,7 @@ func FindWithLogger(sl *slog.Logger, r io.ReaderAt) Signature {
 // Empty returns true if the reader is empty.
 func Empty(r io.ReaderAt) bool {
 	if r == nil {
-		return true
+		return false
 	}
 
 	var p [1]byte
