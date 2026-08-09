@@ -16,7 +16,8 @@ func TestMod(t *testing.T) {
 	be.True(t, magicnumber.MK(r))
 	be.Equal(t, magicnumber.Find(r), magicnumber.MusicProTracker)
 	be.True(t, !magicnumber.MTM(r))
-	be.Equal(t, magicnumber.MusicTracker(r), "ProTracker 8-channel song")
+	const want = `ProTracker 8-channel song, "Defacto2 Test XM"`
+	be.Equal(t, magicnumber.MusicTracker(r), want)
 }
 
 func TestXM(t *testing.T) {
@@ -27,7 +28,8 @@ func TestXM(t *testing.T) {
 	be.True(t, magicnumber.XM(r))
 	be.Equal(t, magicnumber.MusicExtendedModule, magicnumber.Find(r))
 	be.True(t, !magicnumber.IT(r))
-	be.Equal(t, "extended module tracked music", magicnumber.MusicTracker(r))
+	const want = "extended module tracked music"
+	be.Equal(t, magicnumber.MusicTracker(r), want)
 }
 
 func TestIT(t *testing.T) {
@@ -38,6 +40,6 @@ func TestIT(t *testing.T) {
 	be.True(t, magicnumber.IT(r))
 	be.Equal(t, magicnumber.MusicImpulseTracker, magicnumber.Find(r))
 	be.True(t, !magicnumber.MK(r))
-	be.Equal(t, `Impulse Tracker song, "Defacto2 IT test fil"`,
-		magicnumber.MusicTracker(r))
+	const want = `Impulse Tracker song, "Defacto2 IT test file"`
+	be.Equal(t, magicnumber.MusicTracker(r), want)
 }

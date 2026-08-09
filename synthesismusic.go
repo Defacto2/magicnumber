@@ -6,18 +6,19 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"strings"
 )
 
 // Midi matches the Musical Instrument Digital Interface (MIDI) format.
 func Midi(r io.ReaderAt) bool {
-	const size = 4
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	return bytes.Equal(p, []byte{'M', 'T', 'h', 'd'})
+
+	var p [4]byte
+	if n, err := r.ReadAt(p[:], 0); err != nil || n < 4 {
+		return false
+	}
+	return p == [4]byte{'M', 'T', 'h', 'd'}
 }
 
 // MTM matches the MultiTracker music format.
@@ -69,29 +70,30 @@ func MusicTracker(r io.ReaderAt) string {
 //
 // [MultiTracker]: https://ftp.modland.com/pub/documents/format_documentation/MultiTracker%20(.mtm).txt
 func MusicMTM(r io.ReaderAt) string {
-	const sizeID = 3
-	p := make([]byte, sizeID)
-	sr := io.NewSectionReader(r, 0, sizeID)
-	if n, err := sr.Read(p); err != nil || n < sizeID {
+	if r == nil {
 		return ""
 	}
-	if !bytes.Equal(p, []byte{'M', 'T', 'M'}) {
+
+	var p [4]byte
+	if n, err := r.ReadAt(p[:], 0); err != nil || n < 4 {
 		return ""
 	}
-	const offset = 4
-	const size = 20
-	p = make([]byte, size)
-	sr = io.NewSectionReader(r, offset, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if p != [4]byte{'M', 'T', 'M', 0x10} {
 		return ""
 	}
-	s := "MultiTrack song"
-	song := string(bytes.Trim(p, "\x00"))
-	song = strings.TrimSpace(song)
-	if song != "" {
-		s += fmt.Sprintf(", %q", song)
+
+	const off = 4
+	var s [20]byte
+	if n, err := r.ReadAt(s[:], off); err != nil || n < 20 {
+		return ""
 	}
-	return s
+
+	title := bytes.TrimSpace(bytes.TrimRight(s[:], "\x00"))
+	const match = "MultiTrack song"
+	if len(title) > 0 {
+		return fmt.Sprintf(`%s, "%s"`, match, title)
+	}
+	return match
 }
 
 // MusicIT returns the [Impulse Tracker] song or title in the byte slice if available.
@@ -99,29 +101,30 @@ func MusicMTM(r io.ReaderAt) string {
 //
 // [Impulse Tracker]: https://ftp.modland.com/pub/documents/format_documentation/Impulse%20Tracker%20v2.04%20(.it).html
 func MusicIT(r io.ReaderAt) string {
-	const sizeID = 4
-	p := make([]byte, sizeID)
-	sr := io.NewSectionReader(r, 0, sizeID)
-	if n, err := sr.Read(p); err != nil || n < sizeID {
+	if r == nil {
 		return ""
 	}
-	if !bytes.Equal(p, []byte{'I', 'M', 'P', 'M'}) {
+
+	var p [4]byte
+	if n, err := r.ReadAt(p[:], 0); err != nil || n < 4 {
 		return ""
 	}
-	const offset = 4
-	const size = 20
-	p = make([]byte, size)
-	sr = io.NewSectionReader(r, offset, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if p != [4]byte{'I', 'M', 'P', 'M'} {
 		return ""
 	}
-	s := "Impulse Tracker song"
-	song := string(bytes.Trim(p, "\x00"))
-	song = strings.TrimSpace(song)
-	if song != "" {
-		s += fmt.Sprintf(", %q", song)
+
+	const off = 4
+	var s [26]byte
+	if n, err := r.ReadAt(s[:], off); err != nil || n < 26 {
+		return ""
 	}
-	return s
+
+	title := bytes.TrimSpace(bytes.TrimRight(s[:], "\x00"))
+	const match = "Impulse Tracker song"
+	if len(title) > 0 {
+		return fmt.Sprintf(`%s, "%s"`, match, title)
+	}
+	return match
 }
 
 // MusicXM returns the [eXtended Module] song or title in the byte slice if available.
@@ -129,31 +132,31 @@ func MusicIT(r io.ReaderAt) string {
 //
 // [eXtended Module]: https://ftp.modland.com/pub/documents/format_documentation/FastTracker%202%20v2.04%20(.xm).html
 func MusicXM(r io.ReaderAt) string {
-	const sizeID = 17
-	p := make([]byte, sizeID)
-	sr := io.NewSectionReader(r, 0, sizeID)
-	if n, err := sr.Read(p); err != nil || n < sizeID {
+	if r == nil {
 		return ""
 	}
-	if !bytes.Equal(p, []byte{
-		'E', 'x', 't', 'e', 'n', 'd', 'e', 'd', 0x20,
-		'M', 'o', 'd', 'u', 'l', 'e', ':', 0x20,
-	}) {
+
+	var p [17]byte
+	if n, err := r.ReadAt(p[:], 0); err != nil || n < 17 {
 		return ""
 	}
-	const size = 20
-	p = make([]byte, size)
-	sr = io.NewSectionReader(r, sizeID, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	const idText = "Extended Module: "
+	if string(p[:]) != idText {
 		return ""
 	}
-	s := "extended module tracked music"
-	song := string(bytes.Trim(p, "\x00"))
-	song = strings.TrimSpace(song)
-	if song != "" {
-		s += fmt.Sprintf(", %q", song)
+
+	const off = 17
+	var s [20]byte
+	if n, err := r.ReadAt(s[:], off); err != nil || n < 20 {
+		return ""
 	}
-	return s
+
+	title := bytes.TrimSpace(bytes.TrimRight(s[:], "\x00"))
+	const match = "extended module tracked music"
+	if len(title) > 0 {
+		return fmt.Sprintf(`%s, "%s"`, match, title)
+	}
+	return match
 }
 
 // MusicMK returns the MOD song or title in the byte slice if available.
@@ -165,69 +168,50 @@ func MusicXM(r io.ReaderAt) string {
 //
 // [ProTracker]: https://ftp.modland.com/pub/documents/format_documentation/ProTracker%20v1.0%20(.mod).html
 func MusicMK(r io.ReaderAt) string {
-	const size = 4
-	const offset = 1080
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, offset, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return ""
 	}
-	switch {
+
+	var p [4]byte
+	const off = 1080
+	if n, err := r.ReadAt(p[:], off); err != nil || n < 4 {
+		return ""
+	}
+
+	switch p {
+	case [4]byte{'2', 'C', 'H', 'N'}:
+		return modSong("ProTracker 2-channel song", r)
 	case
-		bytes.Equal(p, []byte{'2', 'C', 'H', 'N'}):
-		return music2Chan(r)
+		[4]byte{'M', '.', 'K', '.'},
+		[4]byte{'M', '!', 'K', '!'},
+		[4]byte{'4', 'C', 'H', 'N'},
+		[4]byte{'F', 'L', 'T', '4'}:
+		return modSong("ProTracker 4-channel song", r)
+	case [4]byte{'6', 'C', 'H', 'N'}:
+		return modSong("ProTracker 6-channel song", r)
 	case
-		bytes.Equal(p, []byte{'M', '.', 'K', '.'}),
-		bytes.Equal(p, []byte{'M', '!', 'K', '!'}),
-		bytes.Equal(p, []byte{'4', 'C', 'H', 'N'}),
-		bytes.Equal(p, []byte{'F', 'L', 'T', '4'}):
-		return music4Chan(r)
-	case
-		bytes.Equal(p, []byte{'6', 'C', 'H', 'N'}):
-		return music6Chan(r)
-	case
-		bytes.Equal(p, []byte{'F', 'L', 'T', '8'}),
-		bytes.Equal(p, []byte{'O', 'C', 'T', 'A'}),
-		bytes.Equal(p, []byte{'8', 'C', 'H', 'N'}):
-		return music8Chan(r)
+		[4]byte{'F', 'L', 'T', '8'},
+		[4]byte{'O', 'C', 'T', 'A'},
+		[4]byte{'8', 'C', 'H', 'N'}:
+		return modSong("ProTracker 8-channel song", r)
 	default:
 		return ""
 	}
 }
 
-func music2Chan(r io.ReaderAt) string {
-	s := "ProTracker 2-channel song"
-	return modSong(s, r)
-}
-
-func music4Chan(r io.ReaderAt) string {
-	s := "ProTracker 4-channel song"
-	return modSong(s, r)
-}
-
-func music6Chan(r io.ReaderAt) string {
-	s := "ProTracker 6-channel song"
-	return modSong(s, r)
-}
-
-func music8Chan(r io.ReaderAt) string {
-	s := "ProTracker 8-channel song"
-	return modSong(s, r)
-}
-
-func modSong(info string, r io.ReaderAt) string {
-	const size = 20
-	const offset = 1084
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, offset, size)
-	if n, err := sr.Read(p); err != nil || n < size {
-		return info
+func modSong(match string, r io.ReaderAt) string {
+	if r == nil {
+		return match
 	}
-	song := string(bytes.Trim(p, "\x00"))
-	song = strings.TrimSpace(song)
-	s := info
-	if song != "" {
-		s += fmt.Sprintf(", %q", song)
+	const off = 0
+	var s [20]byte
+	if n, err := r.ReadAt(s[:], off); err != nil || n < 20 {
+		return match
 	}
-	return s
+
+	title := bytes.TrimSpace(bytes.TrimRight(s[:], "\x00"))
+	if len(title) > 0 {
+		return fmt.Sprintf(`%s, "%s"`, match, title)
+	}
+	return match
 }
