@@ -8,30 +8,55 @@ import (
 	"io"
 )
 
+// Zip64 returns true if the reader contains a valid PKWARE Zip64 archive.
 //
-// Pksfx and Pklite functions can be found in internal/magicnumber/executable.go
-//
-
-// Zip64 matches the PKWARE Zip64 archive format.
-// This is an extension to the original ZIP format that allows for larger files.
-// But it is not widely supported and this method is untested.
+// This is an extension to the original ZIP format that allows for larger archives.
 func Zip64(r io.ReaderAt) bool {
-	const size = 30
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	localFileHeader := []byte{'P', 'K', 0x3, 0x4}
-	if !bytes.Equal(p[:4], localFileHeader) {
+
+	var p [4]byte
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 4 {
 		return false
 	}
-	centralDirectoryHeader := []byte{0x6, 0x6, 0x4b, 0x50}
-	centralDirectoryEnd := []byte{0x7, 0x6, 0x4b, 0x50}
-	if !bytes.Contains(p, centralDirectoryHeader) || !bytes.Contains(p, centralDirectoryEnd) {
+	if p != [4]byte{'P', 'K', 0x03, 0x04} {
 		return false
 	}
-	return true
+
+	type sizer interface {
+		Size() int64
+	}
+	s, ok := r.(sizer)
+	if !ok {
+		return false
+	}
+
+	const minSize = 32
+	size := s.Size()
+	if size < minSize {
+		return false
+	}
+
+	var tail [1024]byte
+	read := int(min(size, int64(len(tail))))
+	off := size - int64(read)
+	n, err := r.ReadAt(tail[:read], off)
+	if (err != nil && err != io.EOF) || n < 20 {
+		return false
+	}
+
+	// find the End of Central Directory Record or Central Directory Locator
+	buf := tail[:n]
+	for i := 0; i <= len(buf)-4; i++ {
+		if buf[i] == 'P' && buf[i+1] == 'K' && buf[i+2] == 0x06 {
+			if buf[i+3] == 0x06 || buf[i+3] == 0x07 {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 // Pkzip matches the zip archive format.

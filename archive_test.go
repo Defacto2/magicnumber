@@ -1,7 +1,10 @@
 package magicnumber_test
 
 import (
+	"bytes"
+	"encoding/hex"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/Defacto2/magicnumber"
@@ -28,6 +31,38 @@ const (
 	rarFile        = "TEST.rar"
 	pakFile        = "PAK100.PAK"
 )
+
+// zip64Fixture returns a raw byte stream for a valid ZIP64 archive.
+func zip64Fixture(t *testing.T) ([]byte, error) {
+	t.Helper()
+	const (
+		localFileHeader = "504b0304" + "2d00000000000000000000000000000000000000000000000000"
+		zip64EOCDRecord = "504b0606" + "2c000000000000002d002d000000000000000000000000000000" +
+			"000000000000000000000000000000000000"
+		zip64EOCDLocator = "504b0607" + "00000000000000000000000001000000"
+		standardEOCD     = "504b0506" + "00000000ffffffffffffffff000000000000"
+	)
+
+	rawHex := strings.Join([]string{
+		localFileHeader,
+		zip64EOCDRecord,
+		zip64EOCDLocator,
+		standardEOCD,
+	}, "")
+
+	return hex.DecodeString(rawHex) //nolint:wrapcheck
+}
+
+func TestZip64(t *testing.T) {
+	t.Log("Test Zip64")
+	data, err := zip64Fixture(t)
+	if err != nil {
+		t.Fatalf("failed to build ZIP64 test fixture: %v", err)
+	}
+	r := bytes.NewReader(data)
+	got := magicnumber.Zip64(r)
+	be.True(t, got)
+}
 
 func TestPak(t *testing.T) {
 	t.Parallel()
