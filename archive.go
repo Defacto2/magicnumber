@@ -84,13 +84,16 @@ func PkShrink(r io.ReaderAt) bool {
 
 // PkzipMulti matches the PKWARE Multi-Volume Zip archive format.
 func PkzipMulti(r io.ReaderAt) bool {
-	const size = 4
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	return bytes.Equal(p, []byte{'P', 'K', 0x7, 0x8})
+
+	var p [4]byte
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 4 {
+		return false
+	}
+
+	return p == [4]byte{'P', 'K', 0x07, 0x08}
 }
 
 type pkComp int
@@ -118,60 +121,52 @@ const (
 // Compression methods Shrink, Reduce and Implode are legacy and are generally
 // not supported in modern ZIP tools and libraries.
 func pkzip(r io.ReaderAt) pkComp {
-	const size = 30
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return pkNone
 	}
-	if len(p) < size {
+
+	var p [30]byte
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 30 {
 		return pkNone
 	}
-	// local file header signature     4 bytes  (0x04034b50)
-	localFileHeader := []byte{'P', 'K', 0x3, 0x4}
-	if !bytes.Equal(p[:4], localFileHeader) {
-		return pkNone // 50 4b 03 04
+	// local file header signature
+	if p[0] != 'P' || p[1] != 'K' || p[2] != 0x03 || p[3] != 0x04 {
+		return pkNone
 	}
-	// version needed to extract       2 bytes
-	versionNeeded := p[4] + p[5]
-	if versionNeeded == 0 {
-		// legacy versions of PKZIP returned either 0x.0a (10) or 0x14 (20).
-		return pkNone // 0a 00
-	}
-	// general purpose bit flag        2 bytes
-	// skip this as there's too many reserved values that might cause false positive rejections
-	//
-	// compression method              2 bytes
-	compresionMethod := p[8] + p[9]
-	return pkMethod(compresionMethod)
+
+	// the compression method is a 16-bit little-endian integer at offsets 8 and 9
+	const shift = 8
+	method := uint16(p[8]) | uint16(p[9])<<shift
+	return pkMethod(method)
 }
 
-func pkMethod(compresionMethod byte) pkComp {
+func pkMethod(n uint16) pkComp {
 	const (
-		store       = 0x0
-		shrink      = 0x1
-		reduce1     = 0x2
-		reduce2     = 0x3
-		reduce3     = 0x4
-		reduce4     = 0x5
-		implode     = 0x6
-		deflate     = 0x8
-		deflate64   = 0x9
-		ibmTerse    = 0xa
-		bzip2       = 0xc
-		lzma        = 0xe
-		ibmCMPSC    = 0x10
-		ibmTerseNew = 0x12
-		ibmLZ77z    = 0x13
-		zstd        = 0x5d
-		mp3         = 0x5e
-		xz          = 0x5f
-		jpeg        = 0x60
-		wavPack     = 0x61
-		ppmd        = 0x62
-		ae          = 0x63
+		store       uint16 = 0x0
+		shrink      uint16 = 0x1
+		reduce1     uint16 = 0x2
+		reduce2     uint16 = 0x3
+		reduce3     uint16 = 0x4
+		reduce4     uint16 = 0x5
+		implode     uint16 = 0x6
+		deflate     uint16 = 0x8
+		deflate64   uint16 = 0x9
+		ibmTerse    uint16 = 0xa
+		bzip2       uint16 = 0xc
+		lzma        uint16 = 0xe
+		ibmCMPSC    uint16 = 0x10
+		ibmTerseNew uint16 = 0x12
+		ibmLZ77z    uint16 = 0x13
+		zstd        uint16 = 0x5d
+		mp3         uint16 = 0x5e
+		xz          uint16 = 0x5f
+		jpeg        uint16 = 0x60
+		wavPack     uint16 = 0x61
+		ppmd        uint16 = 0x62
+		ae          uint16 = 0x63
 	)
-	switch compresionMethod {
+
+	switch n {
 	case store, deflate, deflate64:
 		return pkZip
 	case shrink:
@@ -189,36 +184,53 @@ func pkMethod(compresionMethod byte) pkComp {
 
 // Tar matches the Tape ARchive format.
 func Tar(r io.ReaderAt) bool {
-	const offset = 257
-	const size = 5
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, offset, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	return bytes.Equal(p, []byte{'u', 's', 't', 'a', 'r'})
+
+	const off = 257
+	var p [8]byte
+	if n, err := r.ReadAt(p[:], off); (err != nil && err != io.EOF) || n < 8 {
+		return false
+	}
+
+	if p[0] != 'u' || p[1] != 's' || p[2] != 't' || p[3] != 'a' || p[4] != 'r' {
+		return false
+	}
+
+	const (
+		posixTar = 0x00
+		gnuTar   = ' '
+	)
+	return p[5] == posixTar || p[5] == gnuTar
 }
 
-// Rar matches the Roshal ARchive format.
+// Rar matches the Roshal ARchive format, RAR v1 to RAR v4.
 func Rar(r io.ReaderAt) bool {
-	const size = 7
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	return bytes.Equal(p, []byte{'R', 'a', 'r', 0x21, 0x1a, 0x7, 0x0})
+
+	var p [7]byte
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 7 {
+		return false
+	}
+
+	return p == [7]byte{'R', 'a', 'r', 0x21, 0x1a, 0x07, 0x00}
 }
 
-// Rarv5 matches the Roshal ARchive v5 format.
+// Rarv5 matches the Roshal ARchive format, RAR v5.
 func Rarv5(r io.ReaderAt) bool {
-	const size = 8
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	return bytes.Equal(p, []byte{'R', 'a', 'r', 0x21, 0x1a, 0x7, 0x1, 0x0})
+
+	var p [8]byte
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 8 {
+		return false
+	}
+
+	return p == [8]byte{'R', 'a', 'r', 0x21, 0x1a, 0x07, 0x01, 0x00}
 }
 
 // Gzip matches the Gzip Compress archive format.
