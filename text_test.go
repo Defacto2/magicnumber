@@ -1,6 +1,9 @@
 package magicnumber_test
 
 import (
+	"bytes"
+	"fmt"
+	"io"
 	"os"
 	"strings"
 	"testing"
@@ -226,4 +229,64 @@ func TestBinaryTexts(t *testing.T) {
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.XBin(r))
+}
+
+func TestAnsiW_PositionBug(t *testing.T) {
+	// Create a payload larger than chunkSize (1024) so it spans multiple chunks.
+	// Fill first 1030 bytes with dummy letters 'A', then insert a bold sequence "\x1b[1;"
+	// Target sequence starts at exact byte index 1030.
+
+	const count = 1030
+	const bold = "\x1b[1;"
+	padding := bytes.Repeat([]byte{'A'}, count)
+	b := []byte(bold)
+	b = append(padding, b...)
+
+	reader := bytes.NewReader(b)
+	var buf bytes.Buffer
+
+	got := magicnumber.AnsiW(&buf, reader)
+	be.True(t, got)
+
+	s := buf.String()
+	expectedPosition := "position 1030"
+	got = strings.Contains(s, expectedPosition)
+	be.True(t, got)
+	if !got {
+		fmt.Fprintf(os.Stderr, "%q: expected a total size of %d", s, count)
+	}
+}
+
+func TestTxtW(t *testing.T) {
+	t.Run("exceeds 2%", func(t *testing.T) {
+		b := make([]byte, 100)
+		for i := range b {
+			b[i] = 'A'
+		}
+		b[0], b[1], b[2] = 0x01, 0x02, 0x03 // 3% bad bytes
+		r := bytes.NewReader(b)
+		got := magicnumber.TxtW(io.Discard, r)
+		be.True(t, !got)
+	})
+
+	t.Run("1% bad byte", func(t *testing.T) {
+		b := make([]byte, 100)
+		for i := range b {
+			b[i] = 'A'
+		}
+		b[0] = 0x01
+		r := bytes.NewReader(b)
+		got := magicnumber.TxtW(io.Discard, r)
+		be.True(t, got)
+	})
+
+	t.Run("boundaries", func(t *testing.T) {
+		b := make([]byte, 1500)
+		for i := range b {
+			b[i] = 'B'
+		}
+		r := bytes.NewReader(b)
+		got := magicnumber.TxtW(io.Discard, r)
+		be.True(t, got)
+	})
 }
