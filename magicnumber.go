@@ -20,8 +20,8 @@ package magicnumber
 
 import (
 	"errors"
-	"fmt"
 	"io"
+	"log/slog"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -491,18 +491,31 @@ func MatchExt(filename string, r io.ReaderAt) (bool, Signature, error) {
 
 // Find returns the file type signature from the byte slice.
 func Find(r io.ReaderAt) Signature {
-	w := io.Discard
-	return FindW(w, r)
+	return FindWithLogger(nil, r)
 }
 
-// FindW returns the file type signature from the byte slice.
+// Deprecated: use [FindWithLogger] instead.
+// The io.Writer is unused.
+func FindW(_ io.Writer, r io.ReaderAt) Signature {
+	return FindWithLogger(nil, r)
+}
+
+func matched(sl *slog.Logger, sign Signature) {
+	if sl == nil {
+		return
+	}
+	const msg = "find magic number matched"
+	sl.Debug(msg, slog.Int("sign", int(sign)), slog.String("title", sign.Title()))
+}
+
+// FindWithLogger returns the file type signature from the byte slice.
 //
-// The writer is optional for debug output but can usually be [io.Discard].
-func FindW(w io.Writer, r io.ReaderAt) Signature {
-	const name = "find magic number"
-	fmt.Fprintln(w, name)
+// The logger is optional debugging output and can be [slog.DiscardHandler] or nil.
+func FindWithLogger(sl *slog.Logger, r io.ReaderAt) Signature {
+	if sl == nil {
+		sl = slog.New(slog.DiscardHandler)
+	}
 	if Empty(r) {
-		fmt.Fprintln(w, name+" zero btye")
 		return ZeroByte
 	}
 	matchers := *New()
@@ -512,32 +525,29 @@ func FindW(w io.Writer, r io.ReaderAt) Signature {
 			continue
 		}
 		if matcher(r) {
-			fmt.Fprintf(w, name+" matchers sign: %s\n", sign)
+			matched(sl, sign)
 			return sign
 		}
 	}
+	sign := Unknown
 	switch {
 	// do manual, ordered checks here to avoid false positives.
 	case Iff(r): // conflicts with other IFF containers
-		return ElectronicArtsIFF
+		sign = ElectronicArtsIFF
 	case ArcSEA(r): // conflicts with NoGatePAK
-		return ARChiveSEA
-	case AnsiW(w, r):
-		fmt.Fprintf(w, "%s matched ansi: '%s'\n", name, ANSIEscapeText)
-		return ANSIEscapeText
-	case CodePageW(w, r):
-		fmt.Fprintf(w, "%s matched codepage: '%s'\n", name, PlainText)
-		return PlainText
+		sign = ARChiveSEA
+	case AnsiWithLogger(sl, r):
+		sign = ANSIEscapeText
+	case CodePageWithLogger(sl, r):
+		sign = PlainText
 	case Txt(r):
-		fmt.Fprintf(w, "%s matched txt: '%s'\n", name, PlainText)
-		return PlainText
+		sign = PlainText
 	case XBin(r):
-		fmt.Fprintf(w, "%s matched xbin: '%s'\n", name, XBinaryText)
-		return XBinaryText
+		sign = XBinaryText
 	default:
-		fmt.Fprintf(w, "%s matched default unknown: '%s'\n", name, Unknown)
-		return Unknown
 	}
+	matched(sl, sign)
+	return sign
 }
 
 // Empty returns true if the reader is empty.

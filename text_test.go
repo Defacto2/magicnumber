@@ -2,8 +2,7 @@ package magicnumber_test
 
 import (
 	"bytes"
-	"fmt"
-	"io"
+	"log/slog"
 	"os"
 	"strings"
 	"testing"
@@ -234,7 +233,7 @@ func TestTextBinaries(t *testing.T) {
 	be.True(t, magicnumber.XBin(r))
 }
 
-func TestTextAnsiW_PositionBug(t *testing.T) {
+func TestTextAnsi_PositionBug(t *testing.T) {
 	t.Parallel()
 	const count = 1030
 	const bold = "\x1b[1;"
@@ -242,19 +241,16 @@ func TestTextAnsiW_PositionBug(t *testing.T) {
 	b := []byte(bold)
 	b = append(padding, b...)
 
-	var w bytes.Buffer
 	r := bytes.NewReader(b)
-	got := magicnumber.AnsiW(&w, r)
+	var w bytes.Buffer
+	sl := slog.New(slog.NewJSONHandler(&w, &slog.HandlerOptions{
+		Level: slog.LevelDebug,
+	}))
+	got := magicnumber.AnsiWithLogger(sl, r)
 	be.True(t, got)
 
 	s := w.String()
-	substr := "position 1030"
-	got = strings.Contains(s, substr)
-	be.True(t, got)
-	if !got {
-		const format = "%q: expected a total size of %d"
-		fmt.Fprintf(os.Stderr, format, s, count)
-	}
+	be.True(t, strings.Contains(s, `"n":1030`))
 }
 
 func TestTextTxtW(t *testing.T) {
@@ -267,7 +263,7 @@ func TestTextTxtW(t *testing.T) {
 		}
 		b[0], b[1], b[2] = 0x01, 0x02, 0x03 // 3% bad bytes
 		r := bytes.NewReader(b)
-		got := magicnumber.TxtW(io.Discard, r)
+		got := magicnumber.TxtWithLogger(nil, r)
 		be.True(t, !got)
 	})
 
@@ -279,7 +275,7 @@ func TestTextTxtW(t *testing.T) {
 		}
 		b[0] = 0x01
 		r := bytes.NewReader(b)
-		got := magicnumber.TxtW(io.Discard, r)
+		got := magicnumber.TxtWithLogger(nil, r)
 		be.True(t, got)
 	})
 
@@ -290,7 +286,7 @@ func TestTextTxtW(t *testing.T) {
 			b[i] = 'B'
 		}
 		r := bytes.NewReader(b)
-		got := magicnumber.TxtW(io.Discard, r)
+		got := magicnumber.TxtWithLogger(nil, r)
 		be.True(t, got)
 	})
 }

@@ -5,8 +5,8 @@ package magicnumber
 import (
 	"bufio"
 	"bytes"
-	"fmt"
 	"io"
+	"log/slog"
 )
 
 const esc = 0x1b // ANSI escape
@@ -125,7 +125,13 @@ func CodePage(r io.ReaderAt) bool {
 	return CodePageW(io.Discard, r)
 }
 
-// CodePageW returns true if the reader is a potential IBM code page
+// Deprecated: use [CodePageWithLogger] instead.
+// The io.Writer is unused.
+func CodePageW(_ io.Writer, r io.ReaderAt) bool {
+	return CodePageWithLogger(nil, r)
+}
+
+// CodePageWithLogger returns true if the reader is a potential IBM code page
 // text file that was often in use on DOS and ancient Windows systems.
 //
 // This function is heuristic and checks for unique patterns, otherwise
@@ -134,16 +140,13 @@ func CodePage(r io.ReaderAt) bool {
 //   - require IBM PC/Microsoft newlines
 //   - number of newlines should be at least (80 columns / length of file) / halved
 //   - geometric triangle pairs, ▲▼ ◄► ►◄
-//
-// The writer is optional for debug output but can usually be [io.Discard].
-// CodePageW returns true if the reader is a potential IBM code page
-// text file that was often in use on DOS and ancient Windows systems.
-func CodePageW(w io.Writer, r io.ReaderAt) bool { //nolint:funlen
+func CodePageWithLogger(sl *slog.Logger, r io.ReaderAt) bool { //nolint:funlen
+	const msg = "heuristic codepage"
+	if sl == nil {
+		sl = slog.New(slog.DiscardHandler)
+	}
 	if r == nil {
 		return false
-	}
-	if w == nil {
-		w = io.Discard
 	}
 
 	const (
@@ -160,9 +163,7 @@ func CodePageW(w io.Writer, r io.ReaderAt) bool { //nolint:funlen
 	sep := []byte{0x0D, 0x0A} // ms-dos era new line
 	newlines := 0
 	p := make([]byte, chunkSize)
-
-	const format = "reading %d byte chunks of %d bytes"
-	debug(w, fmt.Sprintf(format, chunkSize, size))
+	sl.Debug(msg+" reading chunks", slog.Int("chunk size B", chunkSize), slog.Int64("size B", size))
 
 	// track the last byte of the previous chunk to detect CRLF split across boundaries
 	var lastByte byte
@@ -171,7 +172,7 @@ func CodePageW(w io.Writer, r io.ReaderAt) bool { //nolint:funlen
 	for off := int64(0); off < size; {
 		n, err := r.ReadAt(p, off)
 		if err != nil && err != io.EOF {
-			debug(w, "read error encountered")
+			sl.Debug(msg+" read at error", slog.Int64("offset", off), slog.Any("error", err))
 			return false
 		}
 
@@ -181,7 +182,7 @@ func CodePageW(w io.Writer, r io.ReaderAt) bool { //nolint:funlen
 			newlines++
 		}
 		// heuristic check for unique CP437 character pairs
-		if ok, match := charPairs(w, n, chunk); ok {
+		if ok, match := charPairs(sl, n, chunk); ok {
 			return match
 		}
 
@@ -199,18 +200,25 @@ func CodePageW(w io.Writer, r io.ReaderAt) bool { //nolint:funlen
 	if size > columns {
 		threshold := (size / columns) / split
 		hasEnoughNewlines := int64(newlines) >= threshold
-		debug(w, fmt.Sprintf("%d newline count >= %d (size %d / cols %d / split %d) = %t",
-			newlines, threshold, size, columns, split, hasEnoughNewlines))
+		sl.Debug(msg+"newline count >=",
+			slog.Int("value", newlines),
+			slog.Int64("threshold", threshold),
+			slog.Int64("size", size),
+			slog.Int("columns", columns),
+			slog.Int("split", split),
+			slog.Bool("has enough newlines", hasEnoughNewlines),
+		)
 		if hasEnoughNewlines {
 			return true
 		}
 		return hasMinWords(r, size, minWords)
 	}
-	debug(w, "returning textfile")
+	sl.Debug(msg + " matched a textfile")
 	return true
 }
 
-func charPairs(w io.Writer, n int, buf []byte) (bool, bool) {
+func charPairs(sl *slog.Logger, n int, buf []byte) (bool, bool) {
+	const msg = "character pairs"
 	const binary, textfile = false, true
 	const match = true
 
@@ -223,29 +231,22 @@ func charPairs(w io.Writer, n int, buf []byte) (bool, bool) {
 	s := buf[:n]
 
 	if pos := bytes.Index(s, nulpair[:]); pos != -1 {
-		debug(w, "read to end of file without a marker")
+		sl.Debug(msg + " read to the eof without a marker")
 		return match, binary
 	}
 	if pos := bytes.Index(s, updown[:]); pos != -1 {
-		debug(w, "returning textfile up-down ▲▼ match")
+		sl.Debug(msg + " returning textfile up-down ▲▼ match")
 		return match, textfile
 	}
 	if pos := bytes.Index(s, leftright[:]); pos != -1 {
-		debug(w, "returning textfile left-right ◄► match")
+		sl.Debug(msg + " returning textfile left-right ◄► match")
 		return match, textfile
 	}
 	if pos := bytes.Index(s, rightleft[:]); pos != -1 {
-		debug(w, "returning textfile right-left ►◄ match")
+		sl.Debug(msg + " returning textfile right-left ►◄ match")
 		return match, textfile
 	}
 	return !match, false
-}
-
-func debug(w io.Writer, s string) {
-	if w == nil {
-		return
-	}
-	fmt.Fprintln(w, "code page text "+s)
 }
 
 // hasMinWords checks if the reader contains at least minWords without reading the whole file.
@@ -341,26 +342,30 @@ func CSI(r io.ReaderAt) bool {
 // It for speed and to avoid false positives it only matches the ANSI escape codes
 // for bold, normal and reset text.
 func Ansi(r io.ReaderAt) bool {
-	return AnsiW(io.Discard, r)
+	return AnsiWithLogger(nil, r)
 }
 
-// AnsiW returns true if the reader contains some common ANSI escape codes.
+// Deprecated: use [AnsiWithLogger] instead.
+// The io.Writer is unused.
+func AnsiW(_ io.Writer, r io.ReaderAt) bool {
+	return AnsiWithLogger(nil, r)
+}
+
+// AnsiWithLogger returns true if the reader contains some common ANSI escape codes.
 // It for speed and to avoid false positives it only matches the ANSI escape codes
 // for bold, normal and reset text.
-//
-// The writer is optional for debug output but can usually be [io.Discard].
-func AnsiW(w io.Writer, r io.ReaderAt) bool { //nolint:funlen
+func AnsiWithLogger(sl *slog.Logger, r io.ReaderAt) bool { //nolint:funlen
+	const msg = "common ansi escape codes"
+	if sl == nil {
+		sl = slog.New(slog.DiscardHandler)
+	}
 	if r == nil {
 		return false
-	}
-	if w == nil {
-		w = io.Discard
 	}
 
 	size := Length(r)
 	const chunkSize = 1024
-	const format = "total size %d, chunks %d"
-	ansiln(w, fmt.Sprintf(format, size, chunkSize))
+	sl.Debug(msg, slog.Int("chunk size", chunkSize), slog.Int64("total size B", size))
 
 	reset := [4]byte{esc, '[', '0', 'm'}
 	restart := [4]byte{esc, '[', '2', 'J'}
@@ -378,8 +383,7 @@ func AnsiW(w io.Writer, r io.ReaderAt) bool { //nolint:funlen
 	for {
 		n, err := r.ReadAt(p, off)
 		if err != nil && err != io.EOF {
-			const format = "error, offset %d, %s"
-			ansiln(w, fmt.Sprintf(format, off, err))
+			sl.Debug(msg+" read at error", slog.Any("error", err))
 			return false
 		}
 		if n == 0 {
@@ -395,25 +399,24 @@ func AnsiW(w io.Writer, r io.ReaderAt) bool { //nolint:funlen
 			s = p[:n]
 		}
 
-		const format = "%s, position %d"
 		if pos := bytes.Index(s, reset[:]); pos != -1 {
 			n := off - int64(tails) + int64(pos)
-			ansiln(w, fmt.Sprintf(format, "reset", n))
+			sl.Debug(msg+" reset", slog.Int("position", pos), slog.Int64("n", n))
 			return true
 		}
 		if pos := bytes.Index(s, restart[:]); pos != -1 {
 			n := off - int64(tails) + int64(pos)
-			ansiln(w, fmt.Sprintf(format, "restart", n))
+			sl.Debug(msg+" restart", slog.Int("position", pos), slog.Int64("n", n))
 			return true
 		}
 		if pos := bytes.Index(s, bold[:]); pos != -1 {
 			n := off - int64(tails) + int64(pos)
-			ansiln(w, fmt.Sprintf(format, "bold", n))
+			sl.Debug(msg+" bold", slog.Int("position", pos), slog.Int64("n", n))
 			return true
 		}
 		if pos := bytes.Index(s, normal[:]); pos != -1 {
 			n := off - int64(tails) + int64(pos)
-			ansiln(w, fmt.Sprintf(format, "normal", n))
+			sl.Debug(msg+" normal", slog.Int("position", pos), slog.Int64("n", n))
 			return true
 		}
 
@@ -429,21 +432,12 @@ func AnsiW(w io.Writer, r io.ReaderAt) bool { //nolint:funlen
 		off += int64(n)
 
 		if err == io.EOF {
-			const format = "end of file, %d bytes read"
-			ansiln(w, fmt.Sprintf(format, off))
+			sl.Debug(msg+" end of file", slog.Int64("total bytes read", off))
 			break
 		}
 	}
-	ansiln(w, "scan complete and found nothing")
+	sl.Debug(msg + " scan found nothing")
 	return false
-}
-
-func ansiln(w io.Writer, s string) {
-	if w == nil {
-		return
-	}
-	const name = "ansi reader at "
-	fmt.Fprintln(w, name+s)
 }
 
 // Hlp returns true if the reader contains the Windows Help File signature.
@@ -550,20 +544,27 @@ func Rtf(r io.ReaderAt) bool {
 // Txt returns true if the reader exclusively contains plain text ASCII characters,
 // control characters or "extended ASCII characters".
 func Txt(r io.ReaderAt) bool {
-	return TxtW(io.Discard, r)
+	return TxtWithLogger(nil, r)
 }
 
-// TxtW returns true if the reader exclusively contains plain text ASCII characters,
+// Deprecated: use [TxtWithLogger] instead.
+// The io.Writer is unused.
+func TxtW(_ io.Writer, r io.ReaderAt) bool {
+	return TxtWithLogger(nil, r)
+}
+
+// TxtWithLogger returns true if the reader exclusively contains plain text ASCII characters,
 // control characters or "extended ASCII characters".
 //
 // There is a 2% threshold for non-plain text characters such as ASCII control characters
 // which are not printable but often found in plain text files for 8-bit microcomputers.
-func TxtW(w io.Writer, r io.ReaderAt) bool {
+func TxtWithLogger(sl *slog.Logger, r io.ReaderAt) bool {
+	const msg = "txt "
+	if sl == nil {
+		sl = slog.New(slog.DiscardHandler)
+	}
 	if r == nil {
 		return false
-	}
-	if w == nil {
-		w = io.Discard
 	}
 
 	const chunkSize = 1024
@@ -574,9 +575,7 @@ func TxtW(w io.Writer, r io.ReaderAt) bool {
 
 	var buf [chunkSize]byte
 	count := 0
-
-	const format = "reading %d byte chunks of %d bytes"
-	debug(w, fmt.Sprintf(format, chunkSize, size))
+	sl.Debug(msg+" reading chunks", slog.Int("chunk size B", chunkSize), slog.Int64("size B", size))
 
 	for off := int64(0); off < size; off += chunkSize {
 		bytesToRead := chunkSize
@@ -586,8 +585,7 @@ func TxtW(w io.Writer, r io.ReaderAt) bool {
 
 		n, err := r.ReadAt(buf[:bytesToRead], off)
 		if err != nil && err != io.EOF {
-			const format = "readat error: %s"
-			debug(w, fmt.Sprintf(format, err))
+			sl.Debug(msg+" read at error", slog.Any("error", err))
 			return false
 		}
 
@@ -595,8 +593,8 @@ func TxtW(w io.Writer, r io.ReaderAt) bool {
 			if NotPlainText(buf[i]) {
 				count++
 				if !threshold(count, size) {
-					const format = "count is greater than 2%% of the %d bytes"
-					debug(w, fmt.Sprintf(format, size))
+					sl.Debug(msg+" count is >= than the two percent threshold",
+						slog.Int("count", count), slog.Int64("size B", size))
 					return false
 				}
 			}

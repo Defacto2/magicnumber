@@ -1,8 +1,8 @@
 package magicnumber
 
 import (
-	"fmt"
 	"io"
+	"log/slog"
 )
 
 // Archive reads all the bytes from the reader and returns the file type signature if
@@ -185,37 +185,42 @@ func Programs() []Signature {
 // Text reads the first 512 bytes from the reader and returns the file type signature if
 // the file is a known plain text file or Unknown if the file is not a text file.
 func Text(r io.ReaderAt) (Signature, error) {
-	return TextW(io.Discard, r)
+	return TextWithLogger(nil, r)
 }
 
-// TextW reads the first 512 bytes from the reader and returns the file type signature if
+// Deprecated: use [TextWithLogger] instead.
+// The io.Writer is unused.
+func TextW(_ io.Writer, r io.ReaderAt) (Signature, error) {
+	return TextWithLogger(nil, r)
+}
+
+// TextWithLogger reads the first 512 bytes from the reader and returns the file type signature if
 // the file is a known plain text file or Unknown if the file is not a text file.
 //
 // The writer is optional for debug output but can usually be [io.Discard].
-func TextW(w io.Writer, r io.ReaderAt) (Signature, error) {
-	if w == nil {
-		w = io.Discard
+func TextWithLogger(sl *slog.Logger, r io.ReaderAt) (Signature, error) {
+	const msg = "known texts"
+	if sl == nil {
+		sl = slog.New(slog.DiscardHandler)
 	}
-	const name = "text knowns"
-	fmt.Fprintln(w, name)
 	find := *New()
 	for _, doc := range Texts() {
 		if finder, exists := find[doc]; exists {
 			if finder(r) {
-				fmt.Fprintf(w, "%s finder matched: %s\n", name, doc)
+				sl.Debug(msg+" finder matched", slog.Int("signature", int(doc)), slog.String("title", doc.Title()))
 				return doc, nil
 			}
 		}
 	}
 	switch {
-	case AnsiW(w, r):
+	case AnsiWithLogger(sl, r):
 		return ANSIEscapeText, nil
-	case CodePageW(w, r):
+	case CodePageWithLogger(sl, r):
 		return PlainText, nil
-	case TxtW(w, r):
+	case TxtWithLogger(sl, r):
 		return PlainText, nil
 	default:
-		fmt.Fprintf(w, "%s returned default unknown\n", name)
+		sl.Debug(msg + " returned a default, unknown")
 		return Unknown, nil
 	}
 }
