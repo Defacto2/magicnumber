@@ -47,8 +47,8 @@ func TestArchive(t *testing.T) {
 	sign, err := magicnumber.Archive(r)
 	be.Err(t, err, nil)
 	be.Equal(t, magicnumber.ARChiveSEA, sign)
-	be.Equal(t, "ARC by SEA", sign.String())
-	be.Equal(t, "Archive by SEA", sign.Title())
+	be.Equal(t, sign.String(), "ARC by SEA")
+	be.Equal(t, sign.Title(), "Archive by SEA")
 }
 
 func TestZipReduce(t *testing.T) {
@@ -147,30 +147,30 @@ func TestXZ(t *testing.T) {
 
 func TestArcFree(t *testing.T) {
 	t.Parallel()
-	t.Log("TestArcFree")
+	t.Log("Test wanting ArcFree, not ArcSEA")
 	r, err := os.Open(pathFile(t, freeArcFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.ArcFree(r))
 	be.True(t, !magicnumber.ArcSEA(r))
-	b, sign, err := magicnumber.MatchExt(freeArcFile, r)
+	b, got, err := magicnumber.MatchExt(freeArcFile, r)
 	be.Err(t, err, nil)
 	be.True(t, b)
-	be.Equal(t, magicnumber.FreeArc, sign)
+	be.Equal(t, got, magicnumber.FreeArc)
 }
 
 func TestArcSEA(t *testing.T) {
 	t.Parallel()
-	t.Log("TestArcSEA")
+	t.Log("Test wanting ArcSEA, not ArcFree")
 	r, err := os.Open(pathFile(t, seaFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, !magicnumber.ArcFree(r))
 	be.True(t, magicnumber.ArcSEA(r))
-	b, sign, err := magicnumber.MatchExt(seaFile, r)
+	b, got, err := magicnumber.MatchExt(seaFile, r)
 	be.Err(t, err, nil)
 	be.True(t, b)
-	be.Equal(t, magicnumber.ARChiveSEA, sign)
+	be.Equal(t, got, magicnumber.ARChiveSEA)
 }
 
 func TestLHA(t *testing.T) {
@@ -180,14 +180,14 @@ func TestLHA(t *testing.T) {
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.LzhLha(r))
-	sign := magicnumber.Find(r)
-	be.Equal(t, magicnumber.YoshiLHA, sign)
-	be.Equal(t, "LHA by Yoshi", sign.String())
-	be.Equal(t, "Yoshi LHA", sign.Title())
-	b, sign, err := magicnumber.MatchExt(lhaFile, r)
+	got := magicnumber.Find(r)
+	be.Equal(t, got, magicnumber.YoshiLHA)
+	be.Equal(t, got.String(), "LHA by Yoshi")
+	be.Equal(t, got.Title(), "Yoshi LHA")
+	b, got, err := magicnumber.MatchExt(lhaFile, r)
 	be.Err(t, err, nil)
 	be.True(t, b)
-	be.Equal(t, magicnumber.YoshiLHA, sign)
+	be.Equal(t, got, magicnumber.YoshiLHA)
 }
 
 func TestArj(t *testing.T) {
@@ -224,6 +224,6 @@ func TestRar(t *testing.T) {
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Rar(r))
-	sign := magicnumber.Find(r)
-	be.Equal(t, magicnumber.RoshalARchive, sign)
+	got := magicnumber.Find(r)
+	be.Equal(t, got, magicnumber.RoshalARchive)
 }
