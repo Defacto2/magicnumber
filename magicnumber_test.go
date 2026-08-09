@@ -1,6 +1,7 @@
 package magicnumber_test
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -124,6 +125,8 @@ func ExampleFindExecutable() {
 	// Output: Windows NT v4.0
 }
 
+var ErrCaller = errors.New("runtime caller failed")
+
 func uncompress(name string) string {
 	_, file, _, usable := runtime.Caller(0)
 	if !usable {
@@ -154,10 +157,11 @@ func imgfile(name string) string {
 	return x
 }
 
-func tdfile(name string) string {
+func tdfile(t *testing.T, name string) string {
+	t.Helper()
 	_, file, _, usable := runtime.Caller(0)
 	if !usable {
-		panic("runtime.Caller failed")
+		t.Fatal(ErrCaller)
 	}
 	d := filepath.Dir(file)
 	x := filepath.Join(d, "testdata", name)
@@ -190,7 +194,7 @@ func TestUnknowns(t *testing.T) {
 func TestFind(t *testing.T) {
 	t.Parallel()
 	// walk the assets directory
-	err := filepath.Walk(tdfile(""), func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(tdfile(t, ""), func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}

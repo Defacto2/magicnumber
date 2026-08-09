@@ -12,19 +12,21 @@ import (
 	"github.com/nalgeon/be"
 )
 
-func TestASCII(t *testing.T) {
+// go test -v -run "TestText"
+
+func TestTextASCII(t *testing.T) {
 	t.Parallel()
 	r, err := os.Open(uncompress(asciiFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.ASCII(r))
-	be.Equal(t, magicnumber.PlainText, magicnumber.Find(r))
+	be.Equal(t, magicnumber.Find(r), magicnumber.PlainText)
 
 	r, err = os.Open(uncompress(txtFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.ASCII(r))
-	be.Equal(t, magicnumber.PlainText, magicnumber.Find(r))
+	be.Equal(t, magicnumber.Find(r), magicnumber.PlainText)
 
 	r, err = os.Open(uncompress(gifFile))
 	be.Err(t, err, nil)
@@ -35,46 +37,46 @@ func TestASCII(t *testing.T) {
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, !magicnumber.ASCII(r))
-	be.Equal(t, magicnumber.PlainText, magicnumber.Find(r))
+	be.Equal(t, magicnumber.Find(r), magicnumber.PlainText)
 
-	r, err = os.Open(tdfile(manualFile))
+	r, err = os.Open(tdfile(t, manualFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 
 	be.True(t, !magicnumber.ASCII(r))
-	be.Equal(t, magicnumber.PlainText, magicnumber.Find(r))
+	be.Equal(t, magicnumber.Find(r), magicnumber.PlainText)
 	sign, err := magicnumber.Text(r)
 	be.Err(t, err, nil)
-	be.Equal(t, magicnumber.PlainText, sign)
+	be.Equal(t, sign, magicnumber.PlainText)
 
 	sign, err = magicnumber.Document(r)
 	be.Err(t, err, nil)
-	be.Equal(t, magicnumber.PlainText, sign)
+	be.Equal(t, sign, magicnumber.PlainText)
 
 	sign, err = magicnumber.Document(r)
 	be.Err(t, err, nil)
-	be.Equal(t, magicnumber.PlainText, sign)
+	be.Equal(t, sign, magicnumber.PlainText)
 }
 
-func TestANSI(t *testing.T) {
+func TestTextANSI(t *testing.T) {
 	t.Parallel()
 	r, err := os.Open(uncompress(ansiFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Ansi(r))
-	be.Equal(t, magicnumber.ANSIEscapeText, magicnumber.Find(r))
+	be.Equal(t, magicnumber.Find(r), magicnumber.ANSIEscapeText)
 	sign, err := magicnumber.Text(r)
 	be.Err(t, err, nil)
-	be.Equal(t, magicnumber.ANSIEscapeText, sign)
+	be.Equal(t, sign, magicnumber.ANSIEscapeText)
 	sign, err = magicnumber.Document(r)
 	be.Err(t, err, nil)
-	be.Equal(t, magicnumber.ANSIEscapeText, sign)
+	be.Equal(t, sign, magicnumber.ANSIEscapeText)
 
 	r, err = os.Open(uncompress(txtFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, !magicnumber.Ansi(r))
-	be.Equal(t, magicnumber.PlainText, magicnumber.Find(r))
+	be.Equal(t, magicnumber.Find(r), magicnumber.PlainText)
 
 	r, err = os.Open(uncompress(gifFile))
 	be.Err(t, err, nil)
@@ -85,7 +87,7 @@ func TestANSI(t *testing.T) {
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, !magicnumber.Ansi(r))
-	be.Equal(t, magicnumber.PlainText, magicnumber.Find(r))
+	be.Equal(t, magicnumber.Find(r), magicnumber.PlainText)
 
 	s := "ANSI \x1b[2Jtext"
 	nr := strings.NewReader(s)
@@ -102,25 +104,25 @@ func TestANSI(t *testing.T) {
 	be.True(t, !magicnumber.Ansi(nr))
 }
 
-func TestCSI(t *testing.T) {
+func TestTextCSI(t *testing.T) {
 	t.Parallel()
 	r, err := os.Open(uncompress(ansiFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.CSI(r))
-	be.Equal(t, magicnumber.ANSIEscapeText, magicnumber.Find(r))
+	be.Equal(t, magicnumber.Find(r), magicnumber.ANSIEscapeText)
 	sign, err := magicnumber.Text(r)
 	be.Err(t, err, nil)
-	be.Equal(t, magicnumber.ANSIEscapeText, sign)
+	be.Equal(t, sign, magicnumber.ANSIEscapeText)
 	sign, err = magicnumber.Document(r)
 	be.Err(t, err, nil)
-	be.Equal(t, magicnumber.ANSIEscapeText, sign)
+	be.Equal(t, sign, magicnumber.ANSIEscapeText)
 
 	r, err = os.Open(uncompress(txtFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, !magicnumber.CSI(r))
-	be.Equal(t, magicnumber.PlainText, magicnumber.Find(r))
+	be.Equal(t, magicnumber.Find(r), magicnumber.PlainText)
 
 	r, err = os.Open(uncompress(gifFile))
 	be.Err(t, err, nil)
@@ -131,7 +133,7 @@ func TestCSI(t *testing.T) {
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, !magicnumber.CSI(r))
-	be.Equal(t, magicnumber.PlainText, magicnumber.Find(r))
+	be.Equal(t, magicnumber.Find(r), magicnumber.PlainText)
 
 	s := "ANSI \x1b[2Jtext"
 	nr := strings.NewReader(s)
@@ -148,37 +150,37 @@ func TestCSI(t *testing.T) {
 	be.True(t, !magicnumber.CSI(nr))
 }
 
-func TestRTF(t *testing.T) {
+func TestTextRTF(t *testing.T) {
 	t.Parallel()
 	r, err := os.Open(uncompress(rtfFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Rtf(r))
-	be.Equal(t, magicnumber.RichTextFormat, magicnumber.Find(r))
+	be.Equal(t, magicnumber.Find(r), magicnumber.RichTextFormat)
 }
 
-func TestPDF(t *testing.T) {
+func TestTextPDF(t *testing.T) {
 	t.Parallel()
 	r, err := os.Open(uncompress(pdfFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Pdf(r))
-	be.Equal(t, magicnumber.PortableDocumentFormat, magicnumber.Find(r))
+	be.Equal(t, magicnumber.Find(r), magicnumber.PortableDocumentFormat)
 	sign, err := magicnumber.Document(r)
 	be.Err(t, err, nil)
-	be.Equal(t, magicnumber.PortableDocumentFormat, sign)
+	be.Equal(t, sign, magicnumber.PortableDocumentFormat)
 }
 
-func TestUTF16(t *testing.T) {
+func TestTextUTF16(t *testing.T) {
 	t.Parallel()
 	r, err := os.Open(uncompress(utf16File))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Utf16(r))
-	be.Equal(t, magicnumber.UTF16Text, magicnumber.Find(r))
+	be.Equal(t, magicnumber.Find(r), magicnumber.UTF16Text)
 }
 
-func TestISO7(t *testing.T) {
+func TestTextISO7(t *testing.T) {
 	t.Parallel()
 	r, err := os.Open(uncompress(iso7File))
 	be.Err(t, err, nil)
@@ -193,7 +195,7 @@ func TestISO7(t *testing.T) {
 	be.True(t, !magicnumber.Utf32(r))
 }
 
-func TestByte(t *testing.T) {
+func TestTextByte(t *testing.T) {
 	t.Parallel()
 	b := byte(0x90)
 	be.True(t, magicnumber.NonWindows1252(b))
@@ -201,64 +203,64 @@ func TestByte(t *testing.T) {
 	be.True(t, !magicnumber.NonWindows1252(b))
 }
 
-func TestCodePage(t *testing.T) {
+func TestTextCodePage(t *testing.T) {
 	t.Parallel()
-	r, err := os.Open(tdfile("TRIAD.TXT"))
+	r, err := os.Open(tdfile(t, "TRIAD.TXT"))
 	be.Err(t, err, nil)
 	defer r.Close()
 
 	be.True(t, magicnumber.Txt(r))
 	be.True(t, magicnumber.CodePage(r))
 
-	be.Equal(t, magicnumber.PlainText, magicnumber.Find(r))
+	const want = magicnumber.PlainText
+	be.Equal(t, magicnumber.Find(r), want)
 	sign, err := magicnumber.Text(r)
 	be.Err(t, err, nil)
-	be.Equal(t, magicnumber.PlainText, sign)
+	be.Equal(t, sign, want)
 	sign, err = magicnumber.Document(r)
 	be.Err(t, err, nil)
-	be.Equal(t, magicnumber.PlainText, sign)
+	be.Equal(t, sign, want)
 }
 
-func TestBinaryTexts(t *testing.T) {
+func TestTextBinaries(t *testing.T) {
 	t.Parallel()
-	r, err := os.Open(tdfile("binarytxt.bin"))
+	r, err := os.Open(tdfile(t, "binarytxt.bin"))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, !magicnumber.XBin(r))
-	r, err = os.Open(tdfile("binarytxt.xb"))
+	r, err = os.Open(tdfile(t, "binarytxt.xb"))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.XBin(r))
 }
 
-func TestAnsiW_PositionBug(t *testing.T) {
-	// Create a payload larger than chunkSize (1024) so it spans multiple chunks.
-	// Fill first 1030 bytes with dummy letters 'A', then insert a bold sequence "\x1b[1;"
-	// Target sequence starts at exact byte index 1030.
-
+func TestTextAnsiW_PositionBug(t *testing.T) {
+	t.Parallel()
 	const count = 1030
 	const bold = "\x1b[1;"
 	padding := bytes.Repeat([]byte{'A'}, count)
 	b := []byte(bold)
 	b = append(padding, b...)
 
-	reader := bytes.NewReader(b)
-	var buf bytes.Buffer
-
-	got := magicnumber.AnsiW(&buf, reader)
+	var w bytes.Buffer
+	r := bytes.NewReader(b)
+	got := magicnumber.AnsiW(&w, r)
 	be.True(t, got)
 
-	s := buf.String()
-	expectedPosition := "position 1030"
-	got = strings.Contains(s, expectedPosition)
+	s := w.String()
+	substr := "position 1030"
+	got = strings.Contains(s, substr)
 	be.True(t, got)
 	if !got {
-		fmt.Fprintf(os.Stderr, "%q: expected a total size of %d", s, count)
+		const format = "%q: expected a total size of %d"
+		fmt.Fprintf(os.Stderr, format, s, count)
 	}
 }
 
-func TestTxtW(t *testing.T) {
+func TestTextTxtW(t *testing.T) {
+	t.Parallel()
 	t.Run("exceeds 2%", func(t *testing.T) {
+		t.Parallel()
 		b := make([]byte, 100)
 		for i := range b {
 			b[i] = 'A'
@@ -270,6 +272,7 @@ func TestTxtW(t *testing.T) {
 	})
 
 	t.Run("1% bad byte", func(t *testing.T) {
+		t.Parallel()
 		b := make([]byte, 100)
 		for i := range b {
 			b[i] = 'A'
@@ -281,6 +284,7 @@ func TestTxtW(t *testing.T) {
 	})
 
 	t.Run("boundaries", func(t *testing.T) {
+		t.Parallel()
 		b := make([]byte, 1500)
 		for i := range b {
 			b[i] = 'B'

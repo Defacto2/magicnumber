@@ -10,14 +10,15 @@ import (
 	"github.com/nalgeon/be"
 )
 
-func windows(name string) string {
-	return tdfile(filepath.Join("binaries", "windows", name))
+func windows(t *testing.T, name string) string {
+	t.Helper()
+	return tdfile(t, filepath.Join("binaries", "windows", name))
 }
 
 func TestMSExe(t *testing.T) {
 	t.Parallel()
 	t.Log("TestMSExe")
-	r, err := os.Open(windows("hellojs.com"))
+	r, err := os.Open(windows(t, "hellojs.com"))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.MSExe(r))
@@ -37,7 +38,7 @@ func TestFindBytesExecutableFreeDOS(t *testing.T) {
 		filepath.Join("rread", "rread.exe"),
 	}
 	for _, v := range freedos {
-		p, err := os.Open(tdfile(filepath.Join("binaries", "freedos", v)))
+		p, err := os.Open(tdfile(t, filepath.Join("binaries", "freedos", v)))
 		be.Err(t, err, nil)
 		defer p.Close()
 		w, err = magicnumber.FindExecutable(p)
@@ -57,7 +58,7 @@ func TestFindBytesExecutableWinVista(t *testing.T) {
 		"life.com",
 	}
 	for _, v := range vista {
-		p, err := os.Open(tdfile(filepath.Join("binaries", "windows", v)))
+		p, err := os.Open(tdfile(t, filepath.Join("binaries", "windows", v)))
 		be.Err(t, err, nil)
 		defer p.Close()
 		be.Err(t, err, nil)
@@ -82,7 +83,7 @@ func TestFindBytesExecutableWin3(t *testing.T) {
 		filepath.Join("dskutl21", "DISKUTIL.EXE"),
 	}
 	for _, v := range winv3 {
-		p, err := os.Open(tdfile(filepath.Join("binaries", "windows3x", v)))
+		p, err := os.Open(tdfile(t, filepath.Join("binaries", "windows3x", v)))
 		be.Err(t, err, nil)
 		defer p.Close()
 		w, err := magicnumber.FindExecutable(p)
@@ -98,7 +99,7 @@ func TestFindBytesExecutableWin3(t *testing.T) {
 		be.Equal(t, magicnumber.MicrosoftExecutable, sign)
 	}
 
-	p, err := os.Open(tdfile(filepath.Join("binaries", "windowsXP", "CoreTempv13", "32bit", "Core Temp.exe")))
+	p, err := os.Open(tdfile(t, filepath.Join("binaries", "windowsXP", "CoreTempv13", "32bit", "Core Temp.exe")))
 	be.Err(t, err, nil)
 	defer p.Close()
 	w, err := magicnumber.FindExecutable(p)
@@ -112,7 +113,7 @@ func TestFindBytesExecutableWin3(t *testing.T) {
 	be.Err(t, err, nil)
 	be.Equal(t, magicnumber.MicrosoftExecutable, sign)
 
-	p, err = os.Open(tdfile(filepath.Join("binaries", "windowsXP", "CoreTempv13", "64bit", "Core Temp.exe")))
+	p, err = os.Open(tdfile(t, filepath.Join("binaries", "windowsXP", "CoreTempv13", "64bit", "Core Temp.exe")))
 	be.Err(t, err, nil)
 	defer p.Close()
 	be.Err(t, err, nil)
@@ -137,7 +138,7 @@ func TestFindExecutableWinNT(t *testing.T) {
 		filepath.Join("7z1604-extra", "7za.exe"),
 	}
 	for _, v := range win9x {
-		p, err := os.Open(tdfile(filepath.Join("binaries", "windows9x", v)))
+		p, err := os.Open(tdfile(t, filepath.Join("binaries", "windows9x", v)))
 		be.Err(t, err, nil)
 		defer p.Close()
 		w, err := magicnumber.FindExecutable(p)
@@ -159,7 +160,7 @@ func TestFindExecutableWin9x(t *testing.T) {
 		filepath.Join("rlowe-encrypt", "UNINST.COM"),
 	}
 	for _, v := range unknown {
-		p, err := os.Open(tdfile(filepath.Join("binaries", "windows9x", v)))
+		p, err := os.Open(tdfile(t, filepath.Join("binaries", "windows9x", v)))
 		be.Err(t, err, nil)
 		defer p.Close()
 		w, _ := magicnumber.FindExecutable(p)
@@ -171,7 +172,7 @@ func TestFindExecutableWin9x(t *testing.T) {
 		be.Equal(t, magicnumber.NoneNE, w.NE)
 	}
 
-	p, err := os.Open(tdfile(filepath.Join("binaries", "windows9x", "7z1604-extra", "x64", "7za.exe")))
+	p, err := os.Open(tdfile(t, filepath.Join("binaries", "windows9x", "7z1604-extra", "x64", "7za.exe")))
 	be.Err(t, err, nil)
 	defer p.Close()
 	w, err := magicnumber.FindExecutable(p)

@@ -5,539 +5,877 @@ package magicnumber
 // such as audio only, audio+video, video only, static images, animated images, etc.
 
 import (
-	"bytes"
-	"encoding/hex"
-	"fmt"
 	"io"
-	"math"
-	"strconv"
 )
 
 // AAC matches the Advanced Audio Coding audio format.
 func AAC(r io.ReaderAt) bool {
-	const size = 3
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	if !bytes.Equal(p[:2], []byte{0xff, 0xfb}) {
+
+	var p [3]byte
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 3 {
 		return false
 	}
-	const x90, xb0, xe0 = 0x90, 0xb0, 0xe0
-	switch p[2] {
-	case x90, xb0, xe0:
+
+	const lead = 0xff
+	if p[0] != lead {
+		return false
+	}
+	// byte 1 upper 4 bits must be 0xF (0xF0)
+	// layer bits (bits 1-2) must be 0 (0x06 mask == 0)
+	const byte1 = 0xf0
+	const mask = 0xf6
+	return (p[1] & mask) == byte1
+}
+
+// Avi matches the Microsoft Audio Video Interleave video format.
+func Avi(r io.ReaderAt) bool {
+	if r == nil || !RIFF(r) {
+		return false
+	}
+
+	const off = 8
+	var p [4]byte
+	if n, err := r.ReadAt(p[:], off); (err != nil && err != io.EOF) || n < 4 {
+		return false
+	}
+	return p == [4]byte{'A', 'V', 'I', 0x20}
+}
+
+// Avif returns true if the reader contains an AV1 Image File Format (AVIF) container.
+func Avif(r io.ReaderAt) bool {
+	if r == nil {
+		return false
+	}
+
+	var p [32]byte
+	n, err := r.ReadAt(p[:], 0)
+	if (err != nil && err != io.EOF) || n < 12 {
+		return false
+	}
+
+	const ftyp = "ftyp"
+	if string(p[4:8]) != ftyp {
+		return false
+	}
+
+	const avif = "avif"
+	const avis = "avis"
+	major := string(p[8:12])
+	if major == avif || major == avis {
+		return true
+	}
+
+	for i := 16; i+4 <= n; i += 4 {
+		brand := string(p[i : i+4])
+		if brand == avif || brand == avis {
+			return true
+		}
+	}
+
+	return false
+}
+
+// Bmp matches the BMP image format.
+func Bmp(r io.ReaderAt) bool {
+	if r == nil {
+		return false
+	}
+
+	var p [18]byte
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 18 {
+		return false
+	}
+	// check magic
+	if p[0] != 'B' || p[1] != 'M' {
+		return false
+	}
+	// che3ck for reserved bits
+	if p[6] != 0 || p[7] != 0 || p[8] != 0 || p[9] != 0 {
+		return false
+	}
+
+	// DIB header size (uint32 Little-Endian at offset 14)
+	dibHeader := uint32(p[14]) | uint32(p[15])<<8 | uint32(p[16])<<16 | uint32(p[17])<<24 //nolint:mnd
+	const (
+		os2v1   = 12
+		os2v2   = 16
+		winv3   = 40
+		bmpv2   = 52
+		bmpv3   = 56
+		os2full = 64
+		bmpv4   = 108
+		bmpv5   = 124
+	)
+	switch dibHeader {
+	case os2v1, os2v2, winv3, bmpv2, bmpv3, os2full, bmpv4, bmpv5:
 		return true
 	default:
 		return false
 	}
 }
 
-// Avi matches the Microsoft Audio Video Interleave video format.
-func Avi(r io.ReaderAt) bool {
-	if !RIFF(r) {
-		return false
-	}
-	const offset, size = 8, 8
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, offset, size)
-	if n, err := sr.Read(p); err != nil || n < size {
-		return false
-	}
-	return bytes.Equal(p, []byte{'A', 'V', 'I', 0x20, 'L', 'I', 'S', 'T'})
-}
-
-// Avif matches the AV1 Image File image format in the byte slice, also known as AVIF.
-// This is a new image format based on the AV1 video codec from the Alliance for Open Media.
-// But the detection method is not accurate and should be used as a hint.
-func Avif(r io.ReaderAt) bool {
-	const size, offset = 8, 4
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, offset, size)
-	if n, err := sr.Read(p); err != nil || n < size {
-		return false
-	}
-	// Gary Kessler's File Signatures suggests the AVIF image format is 0x0A 0x00 0x00
-	// but this maybe out dated and definitely causes false positives.
-	// According to the AV1 Image File Format specification there is no magic number.
-	// https://aomediacodec.github.io/av1-avif/v1.0.0.html
-	//
-	// As a workaround, we detect the AVIF image format by checking for the 'ftypavif' string.
-	// 'ftyp' matches the HEIF container and 'avif' is the brand.
-	return bytes.Equal(p, []byte{'f', 't', 'y', 'p', 'a', 'v', 'i', 'f'})
-}
-
-// Bmp matches the BMP image format.
-func Bmp(r io.ReaderAt) bool {
-	const size = 2
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
-		return false
-	}
-	return bytes.Equal(p, []byte{'B', 'M'})
-}
-
 // Flac matches the Free Lossless Audio Codec audio format.
 func Flac(r io.ReaderAt) bool {
-	const size = 8
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	return bytes.Equal(p, []byte{'f', 'L', 'a', 'C', 0x0, 0x0, 0x0, '"'})
+
+	var p [5]byte
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 5 {
+		return false
+	}
+
+	if p[0] != 'f' || p[1] != 'L' || p[2] != 'a' || p[3] != 'C' {
+		return false
+	}
+
+	// byte 4: bit 0 is 'last block' flag
+	// bits 1-7 are block type (0-6 are standard FLAC block types)
+	const valid = 0x7f
+	const types = 6
+	blockType := p[4] & valid
+	return blockType <= types
 }
 
 // Flv matches the Shockwave Flash Video format.
 func Flv(r io.ReaderAt) bool {
-	const size = 4
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	return bytes.Equal(p, []byte{'F', 'L', 'V', 0x1})
+
+	var p [9]byte
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 9 {
+		return false
+	}
+	if p[0] != 'F' || p[1] != 'L' || p[2] != 'V' {
+		return false
+	}
+	const version = 0x01
+	if p[3] != version {
+		return false
+	}
+	n := uint32(p[5])<<24 | uint32(p[6])<<16 | uint32(p[7])<<8 | uint32(p[8])
+	const header = 9
+	return n == header
 }
 
 // Gif matches the image Graphics Interchange Format.
 // There are two versions of the GIF format, GIF87a and GIF89a.
 func Gif(r io.ReaderAt) bool {
-	const size = 6
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	gif87a := []byte{0x47, 0x49, 0x46, 0x38, 0x37, 0x61}
-	gif89a := []byte{0x47, 0x49, 0x46, 0x38, 0x39, 0x61}
-	return bytes.Equal(p, gif87a) ||
-		bytes.Equal(p, gif89a)
+
+	var p [6]byte
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 6 {
+		return false
+	}
+	const gif87a = "GIF87a"
+	const gif89a = "GIF89a"
+	s := string(p[:])
+	return s == gif87a || s == gif89a
 }
 
 // Ico matches the Microsoft Icon image format.
 func Ico(r io.ReaderAt) bool {
-	const size = 4
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	return bytes.Equal(p, []byte{0x0, 0x0, 0x1, 0x0})
+
+	var p [6]byte
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 6 {
+		return false
+	}
+	if p[0] != 0x00 || p[1] != 0x00 {
+		return false
+	}
+	if p[2] != 0x01 || p[3] != 0x00 {
+		return false
+	}
+	images := uint16(p[4]) | uint16(p[5])<<8 //nolint:mnd
+	return images > 0
 }
 
 // Iff matches the Interchange File Format image.
-// This is a generic wrapper format originally created by Electronic Arts
-// for storing data in chunks.
+// This is a generic wrapper format originally created by Electronic Arts for storing data in chunks.
 func Iff(r io.ReaderAt) bool {
-	const size = 4
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	return bytes.Equal(p, []byte{'C', 'A', 'T', 0x20})
+
+	var p [12]byte
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 12 {
+		return false
+	}
+
+	const (
+		form = "FORM"
+		list = "LIST"
+		cat  = "CAT "
+	)
+	id := string(p[:4])
+	if id != form && id != list && id != cat {
+		return false
+	}
+
+	const (
+		interleaved     = "ILBM"
+		planar          = "PBM "
+		amigaContiguous = "ACBM"
+		deepImage       = "DEEP"
+		rgbn            = "RGBN"
+		rgb8            = "RGB8"
+	)
+	switch string(p[8:12]) {
+	case
+		interleaved,
+		planar,
+		amigaContiguous,
+		deepImage,
+		rgbn,
+		rgb8:
+		return true
+	default:
+		return false
+	}
 }
 
-// Ivr matches the RealPlayer video format.
+// Deprecated: use [Real] instead.
 func Ivr(r io.ReaderAt) bool {
-	const size = 4
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	return Real(r)
+}
+
+// Real matches the Real Player and Real Media video formats.
+func Real(r io.ReaderAt) bool {
+	if r == nil {
 		return false
 	}
-	const fullstop = 0x2e
-	return bytes.Equal(p, []byte{fullstop, 'R', 'E', 'C'}) ||
-		bytes.Equal(p, []byte{fullstop, 'R', 'M', 'F'})
+
+	var p [4]byte
+	if n, err := r.ReadAt(p[:], 0); err != nil || n < 4 {
+		return false
+	}
+	const (
+		rmf = ".RMF"
+		rec = ".REC"
+		ivr = ".IVR"
+	)
+	s := string(p[:])
+	return s == rmf || s == rec || s == ivr
 }
 
 // Jpeg matches the JPEG File Interchange Format v1 image.
 func Jpeg(r io.ReaderAt) bool {
-	return jpeg(io.Discard, r, true)
+	return jpeg(r, true)
 }
 
 // JpegNoSuffix matches the JPEG File Interchange Format v1 image.
-// This is a less accurate method than Jpeg as it does not check the final bytes.
+// However, it does not check the final bytes, making it more performant,
+// but it is a less accurate method than [Jpeg].
 func JpegNoSuffix(r io.ReaderAt) bool {
-	return jpeg(io.Discard, r, false)
+	return jpeg(r, false)
 }
 
-// jpeg has a w writer that is only used for debugging,
-// and should be discarded.
-func jpeg(w io.Writer, r io.ReaderAt, suffix bool) bool { //nolint:funlen,cyclop
-	const name = "jpeg reader at"
-	if w == nil {
-		w = io.Discard
-	}
-	r = trimRightNulls(r)
-	const size = 3
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
-		fmt.Fprintln(w, name, "section reader size:", n < size, "error:", err)
+func jpeg(r io.ReaderAt, suffix bool) bool {
+	if r == nil {
 		return false
 	}
-	if !bytes.Equal(p, []byte{0xff, 0xd8, 0xff}) {
-		fmt.Fprintln(w, name, "not found: 0xff, 0xd8, 0xff")
+
+	var p [12]byte
+	n, err := r.ReadAt(p[:], 0)
+	if (err != nil && err != io.EOF) || n < 3 {
 		return false
 	}
-	p = make([]byte, 1)
-	const offset = 3
-	sr = io.NewSectionReader(r, offset, 1)
-	if n, err := sr.Read(p); err != nil || n < 1 {
-		fmt.Fprintln(w, name, "section reader offset:", n < 1, "error:", err)
+
+	// JPEG files always start with SOI (0xFF, 0xD8) followed by the marker (0xFF)
+	if p[0] != 0xFF || p[1] != 0xD8 || p[2] != 0xFF {
 		return false
 	}
-	if len(p) > 0 && p[0] != 0xe0 && p[0] != 0xe1 {
-		fmt.Fprintln(w, name, "not found: 0xe0, 0xe1")
-		return false
+
+	// optional, JFIF or Exif marker validation
+	const marker = 11
+	if n >= marker {
+		if p[3] == 0xE0 && string(p[6:11]) != "JFIF\x00" {
+			return false
+		}
+		if p[3] == 0xE1 && string(p[6:11]) != "Exif\x00" {
+			return false
+		}
 	}
-	const jsize = 5
-	const joffset = 6
-	p = make([]byte, jsize)
-	sr = io.NewSectionReader(r, joffset, jsize)
-	if n, err := sr.Read(p); err != nil || n < jsize {
-		fmt.Fprintln(w, name, "section reader jsize:", n < jsize, "error:", err)
-		return false
+
+	if suffix {
+		return checkJpegSuffix(r)
 	}
-	if !bytes.Equal(p, []byte{'J', 'F', 'I', 'F', 0x0}) &&
-		!bytes.Equal(p, []byte{'E', 'x', 'i', 'f', 0x0}) {
-		fmt.Fprintln(w, name, "not found: JFIF0x0 and: Exif0x0")
-		return false
+	return true
+}
+
+func checkJpegSuffix(r io.ReaderAt) bool {
+	// sizer attempts to get reader size if implemented by r
+	type sizer interface {
+		Size() int64
 	}
-	if !suffix {
+
+	var size int64
+	if s, ok := r.(sizer); ok {
+		size = s.Size()
+	} else {
 		return true
 	}
-	length := Length(r)
-	const sufSize = int64(2)
-	suffOff := length - sufSize
-	p = make([]byte, sufSize)
-	sr = io.NewSectionReader(r, suffOff, sufSize)
-	if n, err := sr.Read(p); err != nil || int64(n) < sufSize {
-		fmt.Fprintln(w, name, "section reader sufSize:", int64(n) < sufSize, "error:", err)
+
+	const minimum = 4
+	if size < minimum {
 		return false
 	}
-	if bytes.HasSuffix(p, []byte{0xff, 0xd9}) {
-		fmt.Fprintln(w, name, "found: 0xff, 0xd9")
+
+	// read trailing 130 bytes to handle standard EOI, null padding, or SAUCE records
+	var tail [130]byte
+	readSize := min(size, int64(len(tail)))
+
+	off := size - readSize
+	n, err := r.ReadAt(tail[:readSize], off)
+	if err != nil && err != io.EOF {
+		return false
+	}
+
+	buf := tail[:n]
+	// strip trailing null bytes efficiently without reading full file
+	for len(buf) > 0 && buf[len(buf)-1] == 0x00 {
+		buf = buf[:len(buf)-1]
+	}
+
+	const sanity = 2
+	if len(buf) < sanity {
+		return false
+	}
+	// check for the standard EOI marker (0xFF, 0xD9)
+	if buf[len(buf)-2] == 0xFF && buf[len(buf)-1] == 0xD9 {
 		return true
 	}
-	return jpegSauce(w, r)
-}
+	// check for SAUCE metadata trailer
+	// the 128-byte SAUCE record precedes EOF
+	if len(buf) >= 130 &&
+		buf[len(buf)-128] == 'S' &&
+		buf[len(buf)-127] == 'A' &&
+		buf[len(buf)-126] == 'U' &&
+		buf[len(buf)-125] == 'C' &&
+		buf[len(buf)-124] == 'E' {
+		// check for the standard EOI marker before the SAUCE record
+		return buf[len(buf)-130] == 0xFF && buf[len(buf)-129] == 0xD9
+	}
 
-// trimRightNulls removes all tailing C null values that can block JPEG detection.
-// This is an edge case issue.
-func trimRightNulls(r io.ReaderAt) io.ReaderAt {
-	sr := io.NewSectionReader(r, 0, math.MaxInt64)
-	s, err := io.ReadAll(sr)
-	if err != nil {
-		return r
-	}
-	b := bytes.TrimRight(s, "\x00")
-	return bytes.NewReader(b)
-}
-
-// jpegSauce handles an edge case, with the SAUCE metadata
-// method that appends data to the end of the file.
-func jpegSauce(w io.Writer, r io.ReaderAt) bool {
-	const name = "jpeg reader at"
-	if w == nil {
-		w = io.Discard
-	}
-	const sauceSeek = 128
-	length := Length(r)
-	sauce := []byte{0xff, 0xd9, 0x1a, 0x53, 0x41, 0x55, 0x43, 0x45, 0x30, 0x30}
-	sauceSize := int64(sauceSeek + len(sauce))
-	suffOff := length - sauceSize
-	p := make([]byte, sauceSize)
-	sr := io.NewSectionReader(r, suffOff, sauceSize)
-	if n, err := sr.Read(p); err != nil || int64(n) < sauceSize {
-		fmt.Fprintln(w, name, "section reader sauceSize:", int64(n) < sauceSize, "error:", err)
-		return false
-	}
-	x := bytes.Contains(p, sauce)
-	fmt.Fprintln(w, name, "found sauce metadata:", x)
-	return x
+	return false
 }
 
 // Jpeg2000 matches the JPEG 2000 image format.
 func Jpeg2000(r io.ReaderAt) bool {
-	const size = 10
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	return bytes.Equal(p, []byte{0x0, 0x0, 0x0, 0xc, 0x6a, 0x50, 0x20, 0x20, 0xd, 0xa})
+
+	var p [12]byte
+	n, err := r.ReadAt(p[:], 0)
+	if (err != nil && err != io.EOF) || n < 2 {
+		return false
+	}
+
+	// raw codestream (.j2c / .j2k)
+	if p[0] == 0xFF && p[1] == 0x4F {
+		return n < 4 || (p[2] == 0xFF && p[3] == 0x51)
+	}
+	// .jp2 container
+	const jp2Container = 12
+	if n < jp2Container {
+		return false
+	}
+	return p == [12]byte{
+		0x00, 0x00, 0x00, 0x0C,
+		'j', 'P', ' ', ' ',
+		0x0D, 0x0A, 0x87, 0x0A,
+	}
 }
 
 // Ilbm matches the InterLeaved Bitmap image format.
 // Created by Electronic Arts it conforms to the IFF standard.
 func Ilbm(r io.ReaderAt) bool {
-	const size = 4
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	if !bytes.Equal(p, []byte{'F', 'O', 'R', 'M'}) {
+
+	var p [12]byte
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 12 {
 		return false
 	}
-	const offset = 8
-	p = make([]byte, size)
-	sr = io.NewSectionReader(r, offset, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+
+	const (
+		form        = "FORM"
+		interleaved = "ILBM"
+	)
+	id := string(p[:4])
+	if id != form {
 		return false
 	}
-	return bytes.Equal(p, []byte{'I', 'L', 'B', 'M'})
+	return string(p[8:12]) == interleaved
 }
 
 // IffAnim matches the Amiga animation format.
 // Created by Electronic Arts it conforms to the IFF standard.
 func IffAnim(r io.ReaderAt) bool {
-	const size = 4
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	if !bytes.Equal(p, []byte{'F', 'O', 'R', 'M'}) {
+
+	var p [12]byte
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 12 {
 		return false
 	}
-	const offset = 8
-	p = make([]byte, size)
-	sr = io.NewSectionReader(r, offset, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+
+	const (
+		form = "FORM"
+		list = "LIST"
+		cat  = "CAT "
+		anim = "ANIM"
+	)
+	id := string(p[:4])
+	if id != form && id != list && id != cat {
 		return false
 	}
-	return bytes.Equal(p, []byte{'A', 'N', 'I', 'M'})
+	return string(p[8:12]) == anim
 }
 
 // IffPBM matches the IFF Planar BitMap image format.
-// This is probably created by Deluxe Paint II Deluxe (v3) on PC.
+// This is likely used by the IBM PC edition of Deluxe Paint II Deluxe,
+// otherwise known as Deluxe Paint II v3.
 func IffPBM(r io.ReaderAt) bool {
-	const size = 4
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	if !bytes.Equal(p, []byte{'F', 'O', 'R', 'M'}) {
+
+	var p [12]byte
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 12 {
 		return false
 	}
-	const offset = 8
-	p = make([]byte, size)
-	sr = io.NewSectionReader(r, offset, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+
+	const (
+		form   = "FORM"
+		cat    = "CAT "
+		list   = "LIST"
+		planar = "PBM "
+	)
+	id := string(p[:4])
+	if id != form && id != list && id != cat {
 		return false
 	}
-	return bytes.Equal(p, []byte{'P', 'B', 'M', ' '})
+	return string(p[8:12]) == planar
 }
 
-// IlbmDecode reads the InterLeaved Bitmap image format in the reader and returns the width and height.
+// IlbmDecode reads the InterLeaved Bitmap or PBM image dimensions from the reader
+// and returns the image width and image height.
+//
+// Zero values are returned if the dimensions cannot be found or there is an error.
 func IlbmDecode(r io.ReaderAt) (int, int) {
-	const offset, size = 20, 4
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, offset, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return 0, 0
 	}
-	hw := hex.EncodeToString([]byte{p[0], p[1]})
-	hh := hex.EncodeToString([]byte{p[2], p[3]})
-	w, err := strconv.ParseInt(hw, 16, 32)
-	if err != nil {
+
+	var p [256]byte
+	n, err := r.ReadAt(p[:], 0)
+	if err != nil || n < 12 {
 		return 0, 0
 	}
-	h, err := strconv.ParseInt(hh, 16, 32)
-	if err != nil {
+
+	const (
+		form = "FORM"
+		cat  = "CAT "
+		list = "LIST"
+		bmhd = "BMHD"
+	)
+	id := string(p[:4])
+	if id != form && id != list && id != cat {
 		return 0, 0
 	}
-	return int(w), int(h)
+
+	const offset = 12
+	off := int64(offset)
+	for off+8 <= int64(n) {
+		const offset = 8
+		chunkID := string(p[off : off+4])
+		chunkSize := int(uint32(p[off+4])<<24 | uint32(p[off+5])<<16 | uint32(p[off+6])<<8 | uint32(p[off+7]))
+		if chunkID == bmhd {
+			dataOff := off + offset
+			// BMHD chunk must have at least 4 bytes for width and height values
+			if dataOff+4 > int64(n) {
+				return 0, 0
+			}
+			w := uint16(p[dataOff])<<offset | uint16(p[dataOff+1])
+			h := uint16(p[dataOff+2])<<offset | uint16(p[dataOff+3])
+			return int(w), int(h)
+		}
+		// advance past the chunk header and chunk data
+		off += offset + int64(chunkSize)
+		if chunkSize%2 != 0 {
+			off++
+		}
+	}
+
+	return 0, 0
 }
 
 // M4v matches the QuickTime M4V video format.
 func M4v(r io.ReaderAt) bool {
-	const offset, size = 4, 8
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, offset, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	return bytes.Equal(p, []byte{'f', 't', 'y', 'p', 'm', 'p', '4', '2'})
+
+	var p [32]byte
+	n, err := r.ReadAt(p[:], 0)
+	if (err != nil && err != io.EOF) || n < 12 {
+		return false
+	}
+	const ftyp = "ftyp"
+	if string(p[4:8]) != ftyp {
+		return false
+	}
+	const (
+		m4v  = "M4V "
+		m4vh = "M4VH"
+		m4vp = "M4VP"
+	)
+	major := string(p[8:12])
+	switch major {
+	case m4v, m4vh, m4vp:
+		return true
+	}
+	for off := 16; off+4 <= n; off += 4 {
+		if string(p[off:off+4]) == m4v {
+			return true
+		}
+	}
+	return false
 }
 
 // Mp4 matches the MPEG-4 video format.
 func Mp4(r io.ReaderAt) bool {
-	const offset, size = 4, 8
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, offset, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	ftypMSNV := []byte{'f', 't', 'y', 'p', 'M', 'S', 'N', 'V'}
-	ftypisom := []byte{'f', 't', 'y', 'p', 'i', 's', 'o', 'm'}
-	return bytes.Equal(p, ftypMSNV) ||
-		bytes.Equal(p, ftypisom)
+
+	var p [32]byte
+	n, err := r.ReadAt(p[:], 0)
+	if (err != nil && err != io.EOF) || n < 12 {
+		return false
+	}
+	const ftyp = "ftyp"
+	if string(p[4:8]) != ftyp {
+		return false
+	}
+	if isMP4([4]byte(p[8:12])) {
+		return true
+	}
+	for off := 16; off+4 <= n; off += 4 {
+		if isMP4([4]byte(p[off : off+4])) {
+			return true
+		}
+	}
+
+	return false
 }
 
-// Mp3 matches the MPEG-1 Audio Layer 3 audio format.
-// This only checks for the ID3v2 tag and not the audio data.
-// Songs with no ID3v2 tag will not be detected including files with ID3v1 tags.
+// isMP4 returns true if the 4-byte brand code identifies a MP4 container.
+func isMP4(brand [4]byte) bool {
+	const (
+		iso14496_14 = true
+		iso14496_16 = true
+		neroDigital = true
+		sonyMP4     = true
+		adobeMP4    = true
+	)
+	switch string(brand[:]) {
+	case "isom", "iso2", "iso3", "iso4", "iso5", "iso6":
+		return iso14496_14
+	case "mp41", "mp42", "mp71", "avc1":
+		return iso14496_16
+	case "ndas", "ndsc", "ndsh", "ndsm", "ndsp", "ndss", "ndxc", "ndxh", "ndxm", "ndxp", "ndxs":
+		return neroDigital
+	case "MSNV":
+		return sonyMP4
+	case "f4v ", "f4p ":
+		return adobeMP4
+	default:
+		return false
+	}
+}
+
+// Mp3 matches the MPEG-1 or 2, Audio Layer III (MP3) format.
+// It checks for either an ID3v2 container header or an MPEG Audio sync frame.
 func Mp3(r io.ReaderAt) bool {
-	const size = 3
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	return bytes.Equal(p, []byte{'I', 'D', '3'})
+
+	var p [10]byte
+	n, err := r.ReadAt(p[:], 0)
+	if (err != nil && err != io.EOF) || n < 2 {
+		return false
+	}
+	// check for the common ID3 v2 header
+	if n >= 4 && p[0] == 'I' && p[1] == 'D' && p[2] == '3' {
+		const sanity = 0xff
+		if p[3] < sanity {
+			return true
+		}
+	}
+	return isMP3(p[:n])
 }
 
-// Mpeg matches the MPEG video format.
+// isMP3 checks if the buffer starts with a valid MPEG Audio Frame sync word.
+func isMP3(p []byte) bool {
+	const sanity = 2
+	if len(p) < sanity {
+		return false
+	}
+
+	const byte0 = 0xff
+	if p[0] != byte0 {
+		return false
+	}
+
+	// byte 1's first 3 bits must be '111' (sync bits 11..8)
+	const sync = 0xe0
+	if (p[1] & sync) != sync {
+		return false
+	}
+
+	// byte 1, extract audio layer (bits 2..1)
+	// 0b11 = Layer I, 0b10 = Layer II, 0b01 = Layer III (MP3), 0b00 = Reserved
+	const byte1 = 0x03
+	const mp3 = 0x01
+	layer := (p[1] >> 1) & byte1
+	return layer == mp3
+}
+
+// Mpeg matches MPEG-1 and MPEG-2 video formats.
 func Mpeg(r io.ReaderAt) bool {
-	const size = 4
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	if len(p) < size {
+
+	var p [4]byte
+	n, err := r.ReadAt(p[:], 0)
+	if (err != nil && err != io.EOF) || n < 4 {
 		return false
 	}
-	return bytes.Equal(p[:3], []byte{0x0, 0x0, 0x1}) && p[3] >= 0xba && p[3] <= 0xbf
+
+	if p[0] != 0x00 || p[1] != 0x00 || p[2] != 0x01 {
+		return false
+	}
+	// check for valid mpeg start codes
+	code := p[3]
+	return code == 0xb3 || code == 0x00 || (code >= 0xba && code <= 0xbf)
 }
 
 // Ogg matches the Ogg Vorbis audio format.
 func Ogg(r io.ReaderAt) bool {
-	const size = 14
-	oggs := []byte{
-		'O', 'g', 'g', 'S',
-		0x0, 0x2, 0x0, 0x0,
-		0x0, 0x0, 0x0, 0x0,
-		0x0, 0x0,
-	}
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	return bytes.Equal(p, oggs)
+
+	var p [6]byte
+	n, err := r.ReadAt(p[:], 0)
+	if (err != nil && err != io.EOF) || n < 6 {
+		return false
+	}
+
+	if p[0] != 'O' || p[1] != 'g' || p[2] != 'g' || p[3] != 'S' {
+		return false
+	}
+	const version = 0x00
+	if p[4] != version {
+		return false
+	}
+	const bos = 0x02 // beginning of stream
+	return (p[5] & bos) != 0
 }
 
-// Pcx matches the Personal Computer eXchange image format.
+// Pcx matches the ZSoft Personal Computer eXchange (PCX) image format.
 func Pcx(r io.ReaderAt) bool {
-	const size = 3
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	id := p[0]
-	ver := p[1] // version of PCX v0 through to v5
-	enc := p[2] // encoding (0 = uncompressed, 1 = run-length encoding compressed)
-	return id == 0x0a && ver <= 0x5 && (enc == 0x0 || enc == 0x1)
+
+	var p [4]byte
+	n, err := r.ReadAt(p[:], 0)
+	if (err != nil && err != io.EOF) || n < 4 {
+		return false
+	}
+
+	const manufacturer = 0x0a
+	if p[0] != manufacturer {
+		return false
+	}
+	version := p[1]
+	if version > 5 || version == 1 {
+		return false
+	}
+	const uncompressed = 0x00
+	const compressed = 0x01
+	encoding := p[2]
+	if encoding != uncompressed && encoding != compressed {
+		return false
+	}
+	bpp := p[3] // bits per pixel
+	return bpp == 1 || bpp == 2 || bpp == 4 || bpp == 8
 }
 
 // Png matches the Portable Network Graphics image format.
 func Png(r io.ReaderAt) bool {
-	const size = 8
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	return bytes.Equal(p, []byte{0x89, 0x50, 0x4E, 0x47, 0x0d, 0x0a, 0x1a, 0x0a})
+
+	var p [8]byte
+	n, err := r.ReadAt(p[:], 0)
+	if (err != nil && err != io.EOF) || n < 8 {
+		return false
+	}
+	return p == [8]byte{0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n'}
 }
 
 // QTMov matches the QuickTime Movie video format.
 func QTMov(r io.ReaderAt) bool {
-	const offset, size = 4, 10
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, offset, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	return bytes.Equal(p[:4], []byte{'m', 'o', 'o', 'v'}) ||
-		bytes.Equal(p, []byte{'f', 't', 'y', 'p', 'q', 't'})
+
+	var p [12]byte
+	n, err := r.ReadAt(p[:], 0)
+	if (err != nil && err != io.EOF) || n < 8 {
+		return false
+	}
+
+	const qt = "qt  "
+	atomType := string(p[4:8])
+	switch atomType {
+	case "moov", "mdat", "wide", "free", "skip":
+		return true
+	case "ftyp":
+		return n >= 12 && string(p[8:12]) == qt
+	default:
+		return false
+	}
 }
 
+// RIFF returns true if the first 4 bytes in the reader match 'RIFF'.
 func RIFF(r io.ReaderAt) bool {
-	const size = 4
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	return bytes.Equal(p, []byte{'R', 'I', 'F', 'F'})
+
+	var p [4]byte
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 4 {
+		return false
+	}
+	return p == [4]byte{'R', 'I', 'F', 'F'}
 }
 
 // Ripscrip returns true if the reader contains the RIPscrip signature.
-// This is a vector graphics format used in BBS systems in the early 1990s.
+// It is a vector graphics format used in BBS systems in the early 1990s.
 func Ripscrip(r io.ReaderAt) bool {
-	const size = 3
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	if head := bytes.Equal(p[:2], []byte{'!', '|'}); !head {
+
+	var p [3]byte
+	n, err := r.ReadAt(p[:], 0)
+	if (err != nil && err != io.EOF) || n < 3 {
 		return false
 	}
-	i := p[2]
-	return i >= '0' && i <= '9'
+
+	if p[0] != '!' || p[1] != '|' {
+		return false
+	}
+	digit := p[2]
+	return digit >= '0' && digit <= '9'
 }
 
 // Tiff matches the Tagged Image File Format.
+// Conforms to Aldus/Adobe TIFF revision 6.0 and BigTIFF specifications.
 func Tiff(r io.ReaderAt) bool {
-	const size = 4
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	le := []byte{0x49, 0x49, 0x2a, 0x00}
-	be := []byte{0x4d, 0x4d, 0x00, 0x2a}
-	return bytes.Equal(p, le) || bytes.Equal(p, be)
+
+	var p [4]byte
+	n, err := r.ReadAt(p[:], 0)
+	if (err != nil && err != io.EOF) || n < 4 {
+		return false
+	}
+	littleEndian := p[0] == 'I' && p[1] == 'I'
+	if littleEndian {
+		// v42 (standard) or v43 (BigTIFF)
+		return (p[2] == 0x2A && p[3] == 0x00) || (p[2] == 0x2B && p[3] == 0x00)
+	}
+	bigEndian := p[0] == 'M' && p[1] == 'M'
+	if bigEndian {
+		// v42 (standard) or v43 (BigTIFF)
+		return (p[2] == 0x00 && p[3] == 0x2A) || (p[2] == 0x00 && p[3] == 0x2B)
+	}
+
+	return false
 }
 
 // Wave matches the IBM / Microsoft Waveform audio format.
 func Wave(r io.ReaderAt) bool {
-	if !RIFF(r) {
+	if r == nil {
 		return false
 	}
-	const offset, size = 8, 8
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, offset, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+
+	var p [12]byte
+	n, err := r.ReadAt(p[:], 0)
+	if (err != nil && err != io.EOF) || n < 12 {
 		return false
 	}
-	return bytes.Equal(p, []byte{'W', 'A', 'V', 'E', 'f', 'm', 't', 0x20})
+
+	if p[0] != 'R' || p[1] != 'I' || p[2] != 'F' {
+		return false
+	}
+	if p[3] != 'F' && p[3] != 'X' {
+		return false
+	}
+	return p[8] == 'W' && p[9] == 'A' && p[10] == 'V' && p[11] == 'E'
 }
 
 // Webp matches the Google WebP image format.
 func Webp(r io.ReaderAt) bool {
-	if !RIFF(r) {
+	if r == nil {
 		return false
 	}
-	const offset, size = 8, 4
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, offset, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	var p [12]byte
+	n, err := r.ReadAt(p[:], 0)
+	if (err != nil && err != io.EOF) || n < 12 {
 		return false
 	}
-	return bytes.Equal(p, []byte{'W', 'E', 'B', 'P'})
+	if p[0] != 'R' || p[1] != 'I' || p[2] != 'F' || p[3] != 'F' {
+		return false
+	}
+	return p[8] == 'W' && p[9] == 'E' && p[10] == 'B' && p[11] == 'P'
 }
 
 // Wmv matches the Microsoft Windows Media video format.
 func Wmv(r io.ReaderAt) bool {
-	const size = 16
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	return bytes.Equal(p, []byte{
+
+	var p [16]byte
+	n, err := r.ReadAt(p[:], 0)
+	if (err != nil && err != io.EOF) || n < 16 {
+		return false
+	}
+	return p == [16]byte{
 		0x30, 0x26, 0xb2, 0x75, 0x8e, 0x66, 0xcf, 0x11,
 		0xa6, 0xd9, 0x00, 0xaa, 0x00, 0x62, 0xce, 0x6c,
-	})
+	}
 }

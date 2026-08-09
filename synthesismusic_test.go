@@ -8,7 +8,7 @@ import (
 	"github.com/nalgeon/be"
 )
 
-func TestMod(t *testing.T) {
+func TestSynthMod(t *testing.T) {
 	t.Parallel()
 	r, err := os.Open(uncompress(modFile))
 	be.Err(t, err, nil)
@@ -20,7 +20,7 @@ func TestMod(t *testing.T) {
 	be.Equal(t, magicnumber.MusicTracker(r), want)
 }
 
-func TestXM(t *testing.T) {
+func TestSynthXM(t *testing.T) {
 	t.Parallel()
 	r, err := os.Open(uncompress(xmFile))
 	be.Err(t, err, nil)
@@ -32,7 +32,7 @@ func TestXM(t *testing.T) {
 	be.Equal(t, magicnumber.MusicTracker(r), want)
 }
 
-func TestIT(t *testing.T) {
+func TestSyncIT(t *testing.T) {
 	t.Parallel()
 	r, err := os.Open(uncompress(itFile))
 	be.Err(t, err, nil)

@@ -15,7 +15,7 @@ func Midi(r io.ReaderAt) bool {
 	}
 
 	var p [4]byte
-	if n, err := r.ReadAt(p[:], 0); err != nil || n < 4 {
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 4 {
 		return false
 	}
 	return p == [4]byte{'M', 'T', 'h', 'd'}
@@ -75,7 +75,7 @@ func MusicMTM(r io.ReaderAt) string {
 	}
 
 	var p [4]byte
-	if n, err := r.ReadAt(p[:], 0); err != nil || n < 4 {
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 4 {
 		return ""
 	}
 	if p != [4]byte{'M', 'T', 'M', 0x10} {
@@ -84,7 +84,7 @@ func MusicMTM(r io.ReaderAt) string {
 
 	const off = 4
 	var s [20]byte
-	if n, err := r.ReadAt(s[:], off); err != nil || n < 20 {
+	if n, err := r.ReadAt(s[:], off); (err != nil && err != io.EOF) || n < 20 {
 		return ""
 	}
 
@@ -106,7 +106,7 @@ func MusicIT(r io.ReaderAt) string {
 	}
 
 	var p [4]byte
-	if n, err := r.ReadAt(p[:], 0); err != nil || n < 4 {
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 4 {
 		return ""
 	}
 	if p != [4]byte{'I', 'M', 'P', 'M'} {
@@ -115,7 +115,7 @@ func MusicIT(r io.ReaderAt) string {
 
 	const off = 4
 	var s [26]byte
-	if n, err := r.ReadAt(s[:], off); err != nil || n < 26 {
+	if n, err := r.ReadAt(s[:], off); (err != nil && err != io.EOF) || n < 26 {
 		return ""
 	}
 
@@ -137,7 +137,7 @@ func MusicXM(r io.ReaderAt) string {
 	}
 
 	var p [17]byte
-	if n, err := r.ReadAt(p[:], 0); err != nil || n < 17 {
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 17 {
 		return ""
 	}
 	const idText = "Extended Module: "
@@ -147,7 +147,7 @@ func MusicXM(r io.ReaderAt) string {
 
 	const off = 17
 	var s [20]byte
-	if n, err := r.ReadAt(s[:], off); err != nil || n < 20 {
+	if n, err := r.ReadAt(s[:], off); (err != nil && err != io.EOF) || n < 20 {
 		return ""
 	}
 
@@ -174,7 +174,7 @@ func MusicMK(r io.ReaderAt) string {
 
 	var p [4]byte
 	const off = 1080
-	if n, err := r.ReadAt(p[:], off); err != nil || n < 4 {
+	if n, err := r.ReadAt(p[:], off); (err != nil && err != io.EOF) || n < 4 {
 		return ""
 	}
 
@@ -205,7 +205,7 @@ func modSong(match string, r io.ReaderAt) string {
 	}
 	const off = 0
 	var s [20]byte
-	if n, err := r.ReadAt(s[:], off); err != nil || n < 20 {
+	if n, err := r.ReadAt(s[:], off); (err != nil && err != io.EOF) || n < 20 {
 		return match
 	}
 

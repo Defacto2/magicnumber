@@ -32,7 +32,7 @@ const (
 func TestPak(t *testing.T) {
 	t.Parallel()
 	t.Log("TestPak")
-	r, err := os.Open(tdfile(pakFile))
+	r, err := os.Open(tdfile(t, pakFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Pak(r))
@@ -41,7 +41,7 @@ func TestPak(t *testing.T) {
 func TestArchive(t *testing.T) {
 	t.Parallel()
 	t.Log("TestArchive")
-	r, err := os.Open(tdfile(seaFile))
+	r, err := os.Open(tdfile(t, seaFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	sign, err := magicnumber.Archive(r)
@@ -54,7 +54,7 @@ func TestArchive(t *testing.T) {
 func TestZipReduce(t *testing.T) {
 	t.Parallel()
 	t.Log("TestZipReduce")
-	r, err := os.Open(tdfile(zipReduceFile))
+	r, err := os.Open(tdfile(t, zipReduceFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.PkShrink(r))
@@ -63,7 +63,7 @@ func TestZipReduce(t *testing.T) {
 func TestZipShrink(t *testing.T) {
 	t.Parallel()
 	t.Log("TestZipShrink")
-	r, err := os.Open(tdfile(zipShrinkFile))
+	r, err := os.Open(tdfile(t, zipShrinkFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.PkShrink(r))
@@ -72,7 +72,7 @@ func TestZipShrink(t *testing.T) {
 func TestZipImplode(t *testing.T) {
 	t.Parallel()
 	t.Log("TestZipImplode")
-	r, err := os.Open(tdfile(zipImplodeFile))
+	r, err := os.Open(tdfile(t, zipImplodeFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Pkzip(r))
@@ -81,7 +81,7 @@ func TestZipImplode(t *testing.T) {
 func TestZipStore(t *testing.T) {
 	t.Parallel()
 	t.Log("TestZipStore")
-	r, err := os.Open(tdfile(zipStoreFile))
+	r, err := os.Open(tdfile(t, zipStoreFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Pkzip(r))
@@ -90,7 +90,7 @@ func TestZipStore(t *testing.T) {
 func TestTar(t *testing.T) {
 	t.Parallel()
 	t.Log("TestTar")
-	r, err := os.Open(tdfile(tarFile))
+	r, err := os.Open(tdfile(t, tarFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Tar(r))
@@ -99,7 +99,7 @@ func TestTar(t *testing.T) {
 func TestRarv5(t *testing.T) {
 	t.Parallel()
 	t.Log("TestRarv5")
-	r, err := os.Open(tdfile(rarv5File))
+	r, err := os.Open(tdfile(t, rarv5File))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Rarv5(r))
@@ -108,11 +108,11 @@ func TestRarv5(t *testing.T) {
 func TestGzip(t *testing.T) {
 	t.Parallel()
 	t.Log("TestGzip")
-	r, err := os.Open(tdfile(gzFile))
+	r, err := os.Open(tdfile(t, gzFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Gzip(r))
-	r, err = os.Open(tdfile(b2zFile))
+	r, err = os.Open(tdfile(t, b2zFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, !magicnumber.Gzip(r))
@@ -121,7 +121,7 @@ func TestGzip(t *testing.T) {
 func TestBzip2(t *testing.T) {
 	t.Parallel()
 	t.Log("TestBzip2")
-	r, err := os.Open(tdfile(b2zFile))
+	r, err := os.Open(tdfile(t, b2zFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Bzip2(r))
@@ -130,7 +130,7 @@ func TestBzip2(t *testing.T) {
 func TestX7z(t *testing.T) {
 	t.Parallel()
 	t.Log("TestX7z")
-	r, err := os.Open(tdfile(x7zFile))
+	r, err := os.Open(tdfile(t, x7zFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.X7z(r))
@@ -139,7 +139,7 @@ func TestX7z(t *testing.T) {
 func TestXZ(t *testing.T) {
 	t.Parallel()
 	t.Log("TestXZ")
-	r, err := os.Open(tdfile(xzFile))
+	r, err := os.Open(tdfile(t, xzFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.XZ(r))
@@ -148,7 +148,7 @@ func TestXZ(t *testing.T) {
 func TestArcFree(t *testing.T) {
 	t.Parallel()
 	t.Log("TestArcFree")
-	r, err := os.Open(tdfile(freeArcFile))
+	r, err := os.Open(tdfile(t, freeArcFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.ArcFree(r))
@@ -162,7 +162,7 @@ func TestArcFree(t *testing.T) {
 func TestArcSEA(t *testing.T) {
 	t.Parallel()
 	t.Log("TestArcSEA")
-	r, err := os.Open(tdfile(seaFile))
+	r, err := os.Open(tdfile(t, seaFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, !magicnumber.ArcFree(r))
@@ -176,7 +176,7 @@ func TestArcSEA(t *testing.T) {
 func TestLHA(t *testing.T) {
 	t.Parallel()
 	t.Log("TestLzhLha")
-	r, err := os.Open(tdfile(lhaFile))
+	r, err := os.Open(tdfile(t, lhaFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.LzhLha(r))
@@ -193,7 +193,7 @@ func TestLHA(t *testing.T) {
 func TestArj(t *testing.T) {
 	t.Parallel()
 	t.Log("TestArj")
-	r, err := os.Open(tdfile(arjFile))
+	r, err := os.Open(tdfile(t, arjFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Arj(r))
@@ -202,7 +202,7 @@ func TestArj(t *testing.T) {
 func TestCab(t *testing.T) {
 	t.Parallel()
 	t.Log("TestCab")
-	r, err := os.Open(tdfile(cabFile))
+	r, err := os.Open(tdfile(t, cabFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Cab(r))
@@ -211,7 +211,7 @@ func TestCab(t *testing.T) {
 func TestZoo(t *testing.T) {
 	t.Parallel()
 	t.Log("TestZoo")
-	r, err := os.Open(tdfile(zooFile))
+	r, err := os.Open(tdfile(t, zooFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Zoo(r))
@@ -220,7 +220,7 @@ func TestZoo(t *testing.T) {
 func TestRar(t *testing.T) {
 	t.Parallel()
 	t.Log("TestRar")
-	r, err := os.Open(tdfile(rarFile))
+	r, err := os.Open(tdfile(t, rarFile))
 	be.Err(t, err, nil)
 	defer r.Close()
 	be.True(t, magicnumber.Rar(r))

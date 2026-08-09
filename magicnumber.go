@@ -407,7 +407,7 @@ func New() *Finder { //nolint:funlen
 		MicrosoftWindowsMedia:             Wmv,
 		MPEG:                              Mpeg,
 		FlashVideo:                        Flv,
-		RealPlayer:                        Ivr,
+		RealPlayer:                        Real,
 		MusicalInstrumentDigitalInterface: Midi,
 		MPEG1AudioLayer3:                  Mp3,
 		MPEGAdvancedAudioCoding:           AAC,

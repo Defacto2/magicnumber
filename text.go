@@ -456,7 +456,7 @@ func Hlp(r io.ReaderAt) bool {
 	// read first 4 bytes directly from offset 0
 	var header4 [4]byte
 	off := int64(0)
-	if n, err := r.ReadAt(header4[:], off); err != nil || n < 4 {
+	if n, err := r.ReadAt(header4[:], off); (err != nil && err != io.EOF) || n < 4 {
 		return false
 	}
 
@@ -471,7 +471,7 @@ func Hlp(r io.ReaderAt) bool {
 	// read the first 6 bytes directly from offset 6
 	var header6 [6]byte
 	off = 6
-	if n, err := r.ReadAt(header6[:], off); err != nil || n < 6 {
+	if n, err := r.ReadAt(header6[:], off); (err != nil && err != io.EOF) || n < 6 {
 		return false
 	}
 	winHelp6B := [6]byte{0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF}
@@ -484,7 +484,7 @@ func Pdf(r io.ReaderAt) bool {
 		return false
 	}
 	var p [4]byte
-	if n, err := r.ReadAt(p[:], 0); err != nil || n < 4 {
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 4 {
 		return false
 	}
 	if p != [4]byte{'%', 'P', 'D', 'F'} {
@@ -509,7 +509,7 @@ func Pdf(r io.ReaderAt) bool {
 
 		off := length - eofSize
 		buf := tail[:eofSize]
-		if n, err := r.ReadAt(buf, off); err != nil || int64(n) < eofSize {
+		if n, err := r.ReadAt(buf, off); (err != nil && err != io.EOF) || int64(n) < eofSize {
 			continue
 		}
 		if string(buf) == eof {
@@ -526,7 +526,7 @@ func Rtf(r io.ReaderAt) bool {
 	}
 
 	var header [5]byte
-	if n, err := r.ReadAt(header[:], 0); err != nil || n < 5 {
+	if n, err := r.ReadAt(header[:], 0); (err != nil && err != io.EOF) || n < 5 {
 		return false
 	}
 	expected := [5]byte{'{', '\\', 'r', 't', 'f'}
@@ -541,7 +541,7 @@ func Rtf(r io.ReaderAt) bool {
 	}
 
 	var tail [1]byte
-	if n, err := r.ReadAt(tail[:], length-1); err != nil || n < 1 {
+	if n, err := r.ReadAt(tail[:], length-1); (err != nil && err != io.EOF) || n < 1 {
 		return false
 	}
 	return tail[0] == '}'
@@ -694,7 +694,7 @@ func Utf8(r io.ReaderAt) bool {
 	}
 
 	var p [3]byte
-	if n, err := r.ReadAt(p[:], 0); err != nil || n < 3 {
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 3 {
 		return false
 	}
 	return p == [3]byte{0xef, 0xbb, 0xbf}
@@ -707,7 +707,7 @@ func Utf16(r io.ReaderAt) bool {
 	}
 
 	var p [2]byte
-	if n, err := r.ReadAt(p[:], 0); err != nil || n < 2 {
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 2 {
 		return false
 	}
 	return p == [2]byte{0xff, 0xfe} || p == [2]byte{0xfe, 0xff}
@@ -720,7 +720,7 @@ func Utf32(r io.ReaderAt) bool {
 	}
 
 	var p [4]byte
-	if n, err := r.ReadAt(p[:], 0); err != nil || n < 4 {
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 4 {
 		return false
 	}
 	return p == [4]byte{0xff, 0xfe, 0x0, 0x0} || p == [4]byte{0x0, 0x0, 0xfe, 0xff}
@@ -733,7 +733,7 @@ func XBin(r io.ReaderAt) bool {
 	}
 
 	var p [5]byte
-	if n, err := r.ReadAt(p[:], 0); err != nil || n < 5 {
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 5 {
 		return false
 	}
 	return p == [5]byte{'X', 'B', 'I', 'N', 0x1a}
