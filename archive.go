@@ -4,7 +4,6 @@ package magicnumber
 // compression and disk image formats.
 
 import (
-	"bytes"
 	"io"
 )
 
@@ -24,17 +23,9 @@ func Zip64(r io.ReaderAt) bool {
 		return false
 	}
 
-	type sizer interface {
-		Size() int64
-	}
-	s, ok := r.(sizer)
-	if !ok {
-		return false
-	}
-
-	const minSize = 32
-	size := s.Size()
-	if size < minSize {
+	const minimum = 32
+	size := Length(r)
+	if size < minimum {
 		return false
 	}
 
@@ -235,148 +226,206 @@ func Rarv5(r io.ReaderAt) bool {
 
 // Gzip matches the Gzip Compress archive format.
 func Gzip(r io.ReaderAt) bool {
-	const size = 3
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	if bytes.Equal(p, []byte{0x1f, 0x8b, 0x08}) {
-		return true
-	}
-	const offset = 512
-	p = make([]byte, size)
-	sr = io.NewSectionReader(r, offset, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+
+	var p [3]byte
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 3 {
 		return false
 	}
-	return bytes.Equal(p, []byte{0x1f, 0x8b, 0x08})
+
+	return p[0] == 0x1f && p[1] == 0x8b && p[2] == 0x08
 }
 
 // Bzip2 matches the Bzip2 Compress archive format.
 func Bzip2(r io.ReaderAt) bool {
-	const size = 3
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	return bytes.Equal(p, []byte{'B', 'Z', 'h'})
+
+	var p [4]byte
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 4 {
+		return false
+	}
+
+	// signature 'B', 'Z', 'h' plus the block size digit '1'-'9'
+	return p[0] == 'B' && p[1] == 'Z' && p[2] == 'h' && p[3] >= '1' && p[3] <= '9'
 }
 
 // X7z matches the 7z Compress archive format.
 func X7z(r io.ReaderAt) bool {
-	const size = 6
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	return bytes.Equal(p, []byte{'7', 'z', 0xbc, 0xaf, 0x27, 0x1c})
+
+	var p [6]byte
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 6 {
+		return false
+	}
+
+	return p == [6]byte{'7', 'z', 0xbc, 0xaf, 0x27, 0x1c}
 }
 
 // XZ matches the XZ Compress archive format.
 func XZ(r io.ReaderAt) bool {
-	const size = 6
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	return bytes.Equal(p, []byte{0xfd, '7', 'z', 'X', 'Z', 0x0})
+
+	var p [6]byte
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 6 {
+		return false
+	}
+
+	return p == [6]byte{0xfd, '7', 'z', 'X', 'Z', 0x00}
 }
 
 // ZStd matches the ZStandard archive format.
 func ZStd(r io.ReaderAt) bool {
-	const size = 4
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	return bytes.Equal(p, []byte{0x28, 0xb5, 0x2f, 0xfd})
+
+	var p [4]byte
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 4 {
+		return false
+	}
+
+	standard := [4]byte{0x28, 0xb5, 0x2f, 0xfd}
+	if p == standard {
+		return true
+	}
+
+	skippable := (p[0] >= 0x50 && p[0] <= 0x5f) && p[1] == 0x2a && p[2] == 0x4d && p[3] == 0x18 //nolint:mnd
+	return skippable
 }
 
 // ArcFree matches the FreeArc compression format.
 func ArcFree(r io.ReaderAt) bool {
-	const size = 4
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	return bytes.Equal(p, []byte{'A', 'r', 'C', 0x1})
+
+	var p [4]byte
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 4 {
+		return false
+	}
+
+	return p == [4]byte{'A', 'r', 'C', 0x01}
 }
 
 // ArcSEA matches the ARChive SEA compression format.
 func ArcSEA(r io.ReaderAt) bool {
-	const size = 2
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
+
+	var p [2]byte
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 2 {
+		return false
+	}
+
 	const (
-		id     = 0x1a
-		method = 0x11 // max method id for ARC compression format
+		id        = 0x1a
+		maxMethod = 0x11 // max method ID for traditional ARC compression formats
 	)
-	if len(p) < size {
-		return false
-	}
-	return p[0] == id && p[1] <= method
+	// must use a valid method byte (1 through 17)
+	return p[0] == id && p[1] > 0 && p[1] <= maxMethod
 }
 
 // LzhLha matches the LHA and LZH compression formats.
 func LzhLha(r io.ReaderAt) bool {
-	const offset = 2
-	const size = 3
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, offset, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	return bytes.Equal(p, []byte{'-', 'l', 'h'})
+
+	var p [5]byte
+	const off = 2
+	if n, err := r.ReadAt(p[:], off); (err != nil && err != io.EOF) || n < 5 {
+		return false
+	}
+
+	// must begin and end with '-'
+	if p[0] != '-' || p[4] != '-' {
+		return false
+	}
+
+	// must be either "-lh#-" or "-lz#-"
+	return p[1] == 'l' && (p[2] == 'h' || p[2] == 'z')
 }
 
 // Zoo matches the Zoo compression format.
 func Zoo(r io.ReaderAt) bool {
-	const size = 4
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	return bytes.Equal(p, []byte{'Z', 'O', 'O', 0x20})
+
+	var p [4]byte
+	const off = 20
+	if n, err := r.ReadAt(p[:], off); (err != nil && err != io.EOF) || n < 4 {
+		return false
+	}
+
+	return p == [4]byte{0xdc, 0xa7, 0xc4, 0xfd}
 }
 
 // Arj matches ARJ compression format.
 func Arj(r io.ReaderAt) bool {
-	const size = 11
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
+
+	var p [11]byte
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 11 {
+		return false
+	}
+
+	if p[0] != 0x60 || p[1] != 0xea {
+		return false
+	}
+
+	const shift = 8
+	headerSize := uint16(p[2]) | (uint16(p[3]) << shift)
+	if headerSize < 15 || headerSize > 2600 {
+		return false
+	}
+
 	const (
-		id        = 0x60
-		signature = 0xea
-		offset    = 0x02
+		msdos     = 0
+		primeComp = 1
+		unix      = 2
+		amiga     = 3
+		macintosh = 4
+		ibmOS2    = 5
+		apple2    = 6
+		atariST   = 7
+		next      = 8
+		vax       = 9
+		win95     = 10
+		win32     = 11
 	)
-	if len(p) < size {
+	switch p[6] {
+	case msdos, primeComp, unix, amiga, macintosh, ibmOS2, apple2, atariST, next, vax, win95, win32:
+		return true
+	default:
 		return false
 	}
-	return p[0] == id && p[1] == signature && p[10] == offset
 }
 
 // Cab matches the Microsoft CABinet archive format.
 func Cab(r io.ReaderAt) bool {
-	const size = 4
-	p := make([]byte, size)
-	sr := io.NewSectionReader(r, 0, size)
-	if n, err := sr.Read(p); err != nil || n < size {
+	if r == nil {
 		return false
 	}
-	return bytes.Equal(p, []byte{'M', 'S', 'C', 'F'})
+
+	var p [28]byte
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 28 {
+		return false
+	}
+
+	return p[0] == 'M' && p[1] == 'S' && p[2] == 'C' && p[3] == 'F' &&
+		p[24] == 0x03 && p[25] == 0x01
 }
 
 // Pak matches the NoGate Consulting PAK format.
@@ -387,24 +436,23 @@ func Pak(r io.ReaderAt) bool {
 		return false
 	}
 
-	const headerSize = 2
-	header := make([]byte, headerSize)
-	if _, err := r.ReadAt(header, 0); err != nil {
+	var p [2]byte
+	if _, err := r.ReadAt(p[:], 0); err != nil {
 		return false
 	}
 
 	const arcMarker = 0x1a
-	if header[0] != arcMarker {
+	if p[0] != arcMarker {
 		return false
 	}
 
-	const crushed = 0x0A   // Method 10 (0x0A) = Crushed (RLE90 + LZW)
-	const distilled = 0x0B // Method 11 (0x0B) = Distilled (LZ77 + Static Huffman)
-	methodNoGate := header[1] == crushed || header[1] == distilled
+	const crushed = 0x0A
+	const distilled = 0x0B
+	methodNoGate := p[1] == crushed || p[1] == distilled
 
-	const trailerSize = 2
-	trailer := make([]byte, trailerSize)
-	if _, err := r.ReadAt(trailer, size-trailerSize); err != nil {
+	const two = 2
+	off := size - two
+	if _, err := r.ReadAt(p[:], off); err != nil {
 		return false
 	}
 
@@ -413,14 +461,10 @@ func Pak(r io.ReaderAt) bool {
 		arc = 0x1A
 		pak = 0xFE
 	)
-	eofARC := trailer[0] == arc && trailer[1] == nul
-	eofPAK := trailer[0] == pak && trailer[1] == nul
+	eofARC := p[0] == arc && p[1] == nul
+	eofPAK := p[0] == pak && p[1] == nul
 	if methodNoGate && (eofARC || eofPAK) {
 		return true
 	}
-	if trailer[0] == pak && trailer[1] == nul {
-		return true
-	}
-
-	return false
+	return p[0] == pak && p[1] == nul
 }

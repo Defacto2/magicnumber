@@ -576,3 +576,40 @@ func Empty(r io.ReaderAt) bool {
 	n, err := r.ReadAt(p[:], 0)
 	return n == 0 || err != nil
 }
+
+// Length returns the length of the reader.
+func Length(r io.ReaderAt) int64 {
+	if r == nil {
+		return 0
+	}
+
+	// use the stateless Size() method if available
+	// provided by os.File, bytes.Reader, SectionReader, etc.
+	type sizer interface {
+		Size() int64
+	}
+	if s, ok := r.(sizer); ok {
+		return s.Size()
+	}
+
+	// fall back to io.Seeker
+	seeker, ok := r.(io.Seeker)
+	if !ok {
+		return 0
+	}
+
+	offset, err := seeker.Seek(0, io.SeekCurrent)
+	if err != nil {
+		return 0
+	}
+
+	seekEnd, err := seeker.Seek(0, io.SeekEnd)
+	if err != nil {
+		return 0
+	}
+
+	const restore = io.SeekStart
+	_, _ = seeker.Seek(offset, restore)
+
+	return seekEnd
+}

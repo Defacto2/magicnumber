@@ -320,17 +320,7 @@ func jpeg(r io.ReaderAt, suffix bool) bool {
 }
 
 func checkJpegSuffix(r io.ReaderAt) bool {
-	// sizer attempts to get reader size if implemented by r
-	type sizer interface {
-		Size() int64
-	}
-
-	var size int64
-	if s, ok := r.(sizer); ok {
-		size = s.Size()
-	} else {
-		return true
-	}
+	size := Length(r)
 
 	const minimum = 4
 	if size < minimum {
