@@ -17,9 +17,11 @@ func Daa(r io.ReaderAt) bool {
 	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 12 {
 		return false
 	}
+
 	if p[0] != 'D' || p[1] != 'A' || p[2] != 'A' || p[3] != 0x00 {
 		return false
 	}
+
 	return daa([4]byte(p[8:12]))
 }
 
@@ -31,9 +33,11 @@ func daa(p [4]byte) bool {
 		shift   = 8
 		andVal  = 0xff
 	)
+
 	if major := ver >> shift; major > sanity0 {
 		return false
 	}
+
 	minor := ver & andVal
 	return minor <= sanity1
 }

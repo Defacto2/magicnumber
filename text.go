@@ -1,3 +1,4 @@
+//nolint:cyclop
 package magicnumber
 
 // Package file text.go contains the functions that parse bytes as common text and document formats.
@@ -234,18 +235,22 @@ func charPairs(sl *slog.Logger, n int, buf []byte) (bool, bool) {
 		sl.Debug(msg + " read to the eof without a marker")
 		return match, binary
 	}
+
 	if pos := bytes.Index(s, updown[:]); pos != -1 {
 		sl.Debug(msg + " returning textfile up-down ▲▼ match")
 		return match, textfile
 	}
+
 	if pos := bytes.Index(s, leftright[:]); pos != -1 {
 		sl.Debug(msg + " returning textfile left-right ◄► match")
 		return match, textfile
 	}
+
 	if pos := bytes.Index(s, rightleft[:]); pos != -1 {
 		sl.Debug(msg + " returning textfile right-left ►◄ match")
 		return match, textfile
 	}
+
 	return !match, false
 }
 

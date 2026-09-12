@@ -2,29 +2,15 @@ version: '2'
 linters:
   default: all
   disable:
-    - depguard
     - dupl
-    - exhaustive
-    - exhaustruct
-    - ireturn
-    - gomodguard
     - nlreturn
     - noinlineerr
-    - paralleltest
     - varnamelen
-    - wsl
     - wsl_v5
-  settings:
-    cyclop:
-      max-complexity: 17
-    funlen:
-      lines: 60
-      statements: 45
-      ignore-comments: true
-    misspell:
-      locale: US
-      ignore-rules:
-        - freedos
+    # retired
+    - exhaustruct
+    - gomodguard
+    - wsl
   exclusions:
     generated: lax
     presets:
@@ -45,6 +31,20 @@ linters:
       - third_party$
       - builtin$
       - examples$
+  settings:
+    cyclop:
+      max-complexity: 15
+    misspell:
+      ignore-rules:
+        - freedos
+    depguard:
+      rules:
+        main:
+          allow:
+            - $gostd
+            - 'golang.org/x/text'
+            - 'github.com/nalgeon/be'
+            - 'github.com/Defacto2/magicnumber'
 formatters:
   enable:
     - gci

@@ -1,3 +1,4 @@
+//nolint:paralleltest
 package magicnumber_test
 
 import (

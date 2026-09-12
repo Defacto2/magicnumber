@@ -1,3 +1,4 @@
+//nolint:exhaustive,exhaustruct_v5,gochecknoglobals
 package magicnumber
 
 // Package file executable.go contains the functions that parse Microsoft and IBM system executable files.
@@ -90,6 +91,7 @@ func MSComp(r io.ReaderAt) bool {
 	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 8 {
 		return false
 	}
+
 	return p == [8]byte{0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1}
 }
 
@@ -112,23 +114,30 @@ func (w Windows) String() string {
 	switch w.NE {
 	case DOSv4Exe, OS2Exe:
 		return fmt.Sprintf("%s v%d.%d", w.NE, w.Major, w.Minor)
+
 	case UnknownNE:
 		return "Unknown NE executable"
+
 	case Windows286Exe:
 		if w.Major == Windows2x {
 			return fmt.Sprintf("Windows/286 v%d.%d", w.Major, w.Minor)
 		}
+
 		return fmt.Sprintf("Windows v%d.%d for 286", w.Major, w.Minor)
+
 	case Windows386Exe:
 		if w.Major == Windows2x {
 			return fmt.Sprintf("Windows/386 v%d.%d", w.Major, w.Minor)
 		}
+
 		return fmt.Sprintf("Windows v%d.%d for 386+", w.Major, w.Minor)
 	}
+
 	if w.PE == Intel386PE {
 		if w.Major < WindowsNTv3 {
 			return "Windows 95/98/ME"
 		}
+
 		if w.Major <= WindowsNT {
 			return fmt.Sprintf("Windows NT v%d.%d", w.Major, w.Minor)
 		}
@@ -153,16 +162,22 @@ func pe(pe PortableExecutable, pe64 bool, os string) string {
 			return "Unknown PE+ executable"
 		}
 		return "Unknown PE executable"
+
 	case Intel386PE:
 		return os + " 32-bit"
+
 	case AMD64PE:
 		return os + " 64-bit"
+
 	case ARMPE:
 		return os + " for ARM"
+
 	case ARM64PE:
 		return os + " for ARM64"
+
 	case ItaniumPE:
 		return os + " for Itanium"
+
 	default:
 		// safe fallback for obscure/unlisted architectures
 		return fmt.Sprintf("%s (%v)", os, pe)
@@ -182,7 +197,7 @@ func WindowsNames() WindowsName {
 	return windows
 }
 
-var windows = WindowsName{ //nolint:gochecknoglobals
+var windows = WindowsName{
 	"Windows 2000":                        {5, 0},
 	"Windows XP":                          {5, 1},
 	"Windows XP Professional x64 Edition": {5, 2},

@@ -1,3 +1,4 @@
+//nolint:exhaustruct_v5,paralleltest
 package magicnumber_test
 
 import (

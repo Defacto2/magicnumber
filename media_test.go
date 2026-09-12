@@ -25,6 +25,7 @@ func TestMediaIcon(t *testing.T) {
 
 func TestMediaAVIF(t *testing.T) {
 	t.Parallel()
+
 	r, err := os.Open(pathUncompress(t, avifFile))
 	be.Err(t, err, nil)
 	defer r.Close()
@@ -34,6 +35,7 @@ func TestMediaAVIF(t *testing.T) {
 
 func TestMediaBMP(t *testing.T) {
 	t.Parallel()
+
 	r, err := os.Open(pathUncompress(t, bmpFile))
 	be.Err(t, err, nil)
 	defer r.Close()
@@ -108,6 +110,7 @@ func TestMediaPCX(t *testing.T) {
 
 func TestMediaPNG(t *testing.T) {
 	t.Parallel()
+
 	r, err := os.Open(pathUncompress(t, pngFile))
 	be.Err(t, err, nil)
 	defer r.Close()
@@ -120,6 +123,7 @@ func TestMediaPNG(t *testing.T) {
 
 func TestMediaWebp(t *testing.T) {
 	t.Parallel()
+
 	r, err := os.Open(pathUncompress(t, webpFile))
 	be.Err(t, err, nil)
 	defer r.Close()
@@ -129,6 +133,7 @@ func TestMediaWebp(t *testing.T) {
 
 func TestMediaWave(t *testing.T) {
 	t.Parallel()
+
 	r, err := os.Open(pathMp3(t, wavFile))
 	be.Err(t, err, nil)
 	defer r.Close()
@@ -138,6 +143,7 @@ func TestMediaWave(t *testing.T) {
 
 func TestMediaMP3(t *testing.T) {
 	t.Parallel()
+
 	r, err := os.Open(pathMp3(t, mp3File))
 	be.Err(t, err, nil)
 	defer r.Close()
@@ -147,6 +153,7 @@ func TestMediaMP3(t *testing.T) {
 
 func TestMediaOGG(t *testing.T) {
 	t.Parallel()
+
 	r, err := os.Open(pathMp3(t, oggFile))
 	be.Err(t, err, nil)
 	defer r.Close()
@@ -156,6 +163,7 @@ func TestMediaOGG(t *testing.T) {
 
 func TestMediaWMA(t *testing.T) {
 	t.Parallel()
+
 	r, err := os.Open(pathMp3(t, wmaFile))
 	be.Err(t, err, nil)
 	defer r.Close()
@@ -168,6 +176,7 @@ func TestMediaWMA(t *testing.T) {
 
 func TestMediaFlac(t *testing.T) {
 	t.Parallel()
+
 	r, err := os.Open(pathMp3(t, "TEST.flac"))
 	be.Err(t, err, nil)
 	defer r.Close()

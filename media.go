@@ -1,3 +1,4 @@
+//nolint:cyclop
 package magicnumber
 
 // Package file media.go contains the functions that parse bytes as common image, digital audio and video formats.
@@ -23,6 +24,7 @@ func AAC(r io.ReaderAt) bool {
 	if p[0] != lead {
 		return false
 	}
+
 	// byte 1 upper 4 bits must be 0xF (0xF0)
 	// layer bits (bits 1-2) must be 0 (0x06 mask == 0)
 	const byte1 = 0xf0

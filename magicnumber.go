@@ -16,6 +16,8 @@
 // [Just Solve the File Format Problem]: http://fileformats.archiveteam.org/wiki/Electronic_File_Formats
 // [OSDev Wiki]: https://wiki.osdev.org]
 // [Wikipedia]: https://en.wikipedia.org/wiki/List_of_file_signatures
+//
+//nolint:gochecknoglobals
 package magicnumber
 
 import (
@@ -25,7 +27,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"sync"
 )
 
 var ErrNilReader = errors.New("nil reader")
@@ -296,84 +297,85 @@ func (sign Signature) Title() string { //nolint:funlen
 // Extension is a map of file type signatures to file extensions.
 type Extension map[Signature][]string
 
-// Ext returns a map of file type signatures to common file extensions.
-func Ext() *Extension { //nolint:funlen
-	exts := Extension{
-		ElectronicArtsIFF:                 []string{iiff},
-		AV1ImageFile:                      []string{".avif"},
-		JPEGFileInterchangeFormat:         []string{".jpg", ".jpeg"},
-		JPEG2000:                          []string{".jp2", ".j2k", ".jpf", ".jpx", ".jpm", ".mj2"},
-		PortableNetworkGraphics:           []string{".png"},
-		GraphicsInterchangeFormat:         []string{".gif"},
-		GoogleWebP:                        []string{".webp"},
-		TaggedImageFileFormat:             []string{".tif", ".tiff"},
-		BMPFileFormat:                     []string{".bmp"},
-		PersonalComputereXchange:          []string{".pcx"},
-		InterleavedBitmap:                 []string{".ilbm", iiff},
-		MicrosoftIcon:                     []string{".ico"},
-		RIPscrip:                          []string{".rip"},
-		MPEG4:                             []string{".mp4"},
-		QuickTimeMovie:                    []string{".mov"},
-		QuickTimeM4V:                      []string{".m4v"},
-		MicrosoftAudioVideoInterleave:     []string{".avi"},
-		MicrosoftWindowsMedia:             []string{".wmv"},
-		MPEG:                              []string{".mpg", ".mpeg"},
-		FlashVideo:                        []string{".flv"},
-		RealPlayer:                        []string{".rv", ".rm", ".rmvb"},
-		MusicalInstrumentDigitalInterface: []string{".mid", ".midi"},
-		MPEG1AudioLayer3:                  []string{".mp3"},
-		MPEGAdvancedAudioCoding:           []string{".aac", ".mp3"},
-		OggVorbisCodec:                    []string{".ogg"},
-		FreeLosslessAudioCodec:            []string{".flac"},
-		WaveAudioForWindows:               []string{".wav"},
-		MusicExtendedModule:               []string{".xm"},
-		MusicMultiTrackModule:             []string{".mtm"},
-		MusicImpulseTracker:               []string{".it"},
-		MusicProTracker:                   []string{".mod"},
-		PKWAREZipShrink:                   []string{zzip},
-		PKWAREZipReduce:                   []string{zzip},
-		PKWAREZipImplode:                  []string{zzip},
-		PKWAREZip64:                       []string{zzip},
-		PKWAREZip:                         []string{zzip},
-		PKWAREMultiVolume:                 []string{zzip},
-		PKLITE:                            []string{zzip},
-		PKSFX:                             []string{zzip},
-		TapeARchive:                       []string{".tar"},
-		RoshalARchive:                     []string{".rar"},
-		RoshalARchivev5:                   []string{".rar"},
-		GzipCompressArchive:               []string{".gz"},
-		Bzip2CompressArchive:              []string{".bz2"},
-		X7zCompressArchive:                []string{".7z"},
-		XZCompressArchive:                 []string{".xz"},
-		ZStandardArchive:                  []string{".zst"},
-		FreeArc:                           []string{".arc"},
-		ARChiveSEA:                        []string{".arc"},
-		YoshiLHA:                          []string{".lzh", ".lha"},
-		ZooArchive:                        []string{".zoo"},
-		ArchiveRobertJung:                 []string{".arj"},
-		MicrosoftCABinet:                  []string{".cab"},
-		MicrosoftDOSKWAJ:                  []string{".com"},
-		MicrosoftDOSSZDD:                  []string{eexe},
-		MicrosoftExecutable:               []string{eexe},
-		MicrosoftCompoundFile:             []string{eexe},
-		CDISO9660:                         []string{".iso"},
-		CDNero:                            []string{".nri"},
-		CDPowerISO:                        []string{".daa"},
-		CDAlcohol120:                      []string{".mdf"},
-		WindowsHelpFile:                   []string{".hlp"},
-		PortableDocumentFormat:            []string{".pdf"},
-		RichTextFormat:                    []string{".rtf"},
-		UTF8Text:                          []string{ttxt},
-		UTF16Text:                         []string{ttxt},
-		UTF32Text:                         []string{ttxt},
-		ANSIEscapeText:                    []string{".ans"},
-		PlainText:                         []string{ttxt},
-		ElectronicArtsAnim:                []string{iiff, ".anm"},
-		PlanarBitMap:                      []string{iiff, ".lbm"},
-		NoGatePAK:                         []string{".pak"},
-		XBinaryText:                       []string{".xb", ".bin"},
-	}
-	return &exts
+var extensions = Extension{
+	ElectronicArtsIFF:                 []string{iiff},
+	AV1ImageFile:                      []string{".avif"},
+	JPEGFileInterchangeFormat:         []string{".jpg", ".jpeg"},
+	JPEG2000:                          []string{".jp2", ".j2k", ".jpf", ".jpx", ".jpm", ".mj2"},
+	PortableNetworkGraphics:           []string{".png"},
+	GraphicsInterchangeFormat:         []string{".gif"},
+	GoogleWebP:                        []string{".webp"},
+	TaggedImageFileFormat:             []string{".tif", ".tiff"},
+	BMPFileFormat:                     []string{".bmp"},
+	PersonalComputereXchange:          []string{".pcx"},
+	InterleavedBitmap:                 []string{".ilbm", iiff},
+	MicrosoftIcon:                     []string{".ico"},
+	RIPscrip:                          []string{".rip"},
+	MPEG4:                             []string{".mp4"},
+	QuickTimeMovie:                    []string{".mov"},
+	QuickTimeM4V:                      []string{".m4v"},
+	MicrosoftAudioVideoInterleave:     []string{".avi"},
+	MicrosoftWindowsMedia:             []string{".wmv"},
+	MPEG:                              []string{".mpg", ".mpeg"},
+	FlashVideo:                        []string{".flv"},
+	RealPlayer:                        []string{".rv", ".rm", ".rmvb"},
+	MusicalInstrumentDigitalInterface: []string{".mid", ".midi"},
+	MPEG1AudioLayer3:                  []string{".mp3"},
+	MPEGAdvancedAudioCoding:           []string{".aac", ".mp3"},
+	OggVorbisCodec:                    []string{".ogg"},
+	FreeLosslessAudioCodec:            []string{".flac"},
+	WaveAudioForWindows:               []string{".wav"},
+	MusicExtendedModule:               []string{".xm"},
+	MusicMultiTrackModule:             []string{".mtm"},
+	MusicImpulseTracker:               []string{".it"},
+	MusicProTracker:                   []string{".mod"},
+	PKWAREZipShrink:                   []string{zzip},
+	PKWAREZipReduce:                   []string{zzip},
+	PKWAREZipImplode:                  []string{zzip},
+	PKWAREZip64:                       []string{zzip},
+	PKWAREZip:                         []string{zzip},
+	PKWAREMultiVolume:                 []string{zzip},
+	PKLITE:                            []string{zzip},
+	PKSFX:                             []string{zzip},
+	TapeARchive:                       []string{".tar"},
+	RoshalARchive:                     []string{".rar"},
+	RoshalARchivev5:                   []string{".rar"},
+	GzipCompressArchive:               []string{".gz"},
+	Bzip2CompressArchive:              []string{".bz2"},
+	X7zCompressArchive:                []string{".7z"},
+	XZCompressArchive:                 []string{".xz"},
+	ZStandardArchive:                  []string{".zst"},
+	FreeArc:                           []string{".arc"},
+	ARChiveSEA:                        []string{".arc"},
+	YoshiLHA:                          []string{".lzh", ".lha"},
+	ZooArchive:                        []string{".zoo"},
+	ArchiveRobertJung:                 []string{".arj"},
+	MicrosoftCABinet:                  []string{".cab"},
+	MicrosoftDOSKWAJ:                  []string{".com"},
+	MicrosoftDOSSZDD:                  []string{eexe},
+	MicrosoftExecutable:               []string{eexe},
+	MicrosoftCompoundFile:             []string{eexe},
+	CDISO9660:                         []string{".iso"},
+	CDNero:                            []string{".nri"},
+	CDPowerISO:                        []string{".daa"},
+	CDAlcohol120:                      []string{".mdf"},
+	WindowsHelpFile:                   []string{".hlp"},
+	PortableDocumentFormat:            []string{".pdf"},
+	RichTextFormat:                    []string{".rtf"},
+	UTF8Text:                          []string{ttxt},
+	UTF16Text:                         []string{ttxt},
+	UTF32Text:                         []string{ttxt},
+	ANSIEscapeText:                    []string{".ans"},
+	PlainText:                         []string{ttxt},
+	ElectronicArtsAnim:                []string{iiff, ".anm"},
+	PlanarBitMap:                      []string{iiff, ".lbm"},
+	NoGatePAK:                         []string{".pak"},
+	XBinaryText:                       []string{".xb", ".bin"},
+}
+
+// Exts returns a map of file type signatures to common file extensions.
+func Exts() Extension {
+	return extensions
 }
 
 // Matcher is a function that matches a byte slice to a file type.
@@ -382,89 +384,86 @@ type Matcher func(io.ReaderAt) bool
 // Finder is a map of file type signatures to matchers.
 type Finder map[Signature]Matcher
 
-var defaultFinder = sync.OnceValue(func() Finder { //nolint:gochecknoglobals
-	return *New() // stores a copy of the Finder map
-})
+var finds = Finder{
+	ElectronicArtsIFF:                 Iff,
+	AV1ImageFile:                      Avif,
+	JPEGFileInterchangeFormat:         Jpeg,
+	JPEG2000:                          Jpeg2000,
+	PortableNetworkGraphics:           Png,
+	GraphicsInterchangeFormat:         Gif,
+	GoogleWebP:                        Webp,
+	TaggedImageFileFormat:             Tiff,
+	BMPFileFormat:                     Bmp,
+	PersonalComputereXchange:          Pcx,
+	InterleavedBitmap:                 Ilbm,
+	MicrosoftIcon:                     Ico,
+	RIPscrip:                          Ripscrip,
+	MPEG4:                             Mp4,
+	QuickTimeMovie:                    QTMov,
+	QuickTimeM4V:                      M4v,
+	MicrosoftAudioVideoInterleave:     Avi,
+	MicrosoftWindowsMedia:             Wmv,
+	MPEG:                              Mpeg,
+	FlashVideo:                        Flv,
+	RealPlayer:                        Real,
+	MusicalInstrumentDigitalInterface: Midi,
+	MPEG1AudioLayer3:                  Mp3,
+	MPEGAdvancedAudioCoding:           AAC,
+	OggVorbisCodec:                    Ogg,
+	FreeLosslessAudioCodec:            Flac,
+	WaveAudioForWindows:               Wave,
+	MusicExtendedModule:               XM,
+	MusicMultiTrackModule:             MTM,
+	MusicImpulseTracker:               IT,
+	MusicProTracker:                   MK,
+	PKWAREZipShrink:                   PkShrink,
+	PKWAREZipReduce:                   PkReduce,
+	PKWAREZipImplode:                  PkImplode,
+	PKWAREZip64:                       Zip64,
+	PKWAREZip:                         Pkzip,
+	PKWAREMultiVolume:                 PkzipMulti,
+	PKLITE:                            Pklite,
+	PKSFX:                             Pksfx,
+	TapeARchive:                       Tar,
+	RoshalARchive:                     Rar,
+	RoshalARchivev5:                   Rarv5,
+	GzipCompressArchive:               Gzip,
+	Bzip2CompressArchive:              Bzip2,
+	X7zCompressArchive:                X7z,
+	XZCompressArchive:                 XZ,
+	ZStandardArchive:                  ZStd,
+	FreeArc:                           ArcFree,
+	ARChiveSEA:                        ArcSEA,
+	YoshiLHA:                          LzhLha,
+	ZooArchive:                        Zoo,
+	ArchiveRobertJung:                 Arj,
+	MicrosoftCABinet:                  Cab,
+	MicrosoftDOSKWAJ:                  DosKWAJ,
+	MicrosoftDOSSZDD:                  DosSZDD,
+	MicrosoftExecutable:               MSExe,
+	MicrosoftCompoundFile:             MSComp,
+	CDISO9660:                         ISO,
+	CDNero:                            Nero,
+	CDPowerISO:                        Daa,
+	CDAlcohol120:                      Mdf,
+	WindowsHelpFile:                   Hlp,
+	PortableDocumentFormat:            Pdf,
+	RichTextFormat:                    Rtf,
+	UTF8Text:                          Utf8,
+	UTF16Text:                         Utf16,
+	UTF32Text:                         Utf32,
+	ElectronicArtsAnim:                IffAnim,
+	PlanarBitMap:                      IffPBM,
+	NoGatePAK:                         Pak,
+	XBinaryText:                       XBin,
+}
 
-// New returns a new Finder with all the matchers.
+// Finds returns a copy of all the Finder matchers.
 //
 // ANSIEscapeText and PlainText are not included as they need to be
 // checked separately and in a specific order.
-func New() *Finder { //nolint:funlen
-	finds := Finder{
-		ElectronicArtsIFF:                 Iff,
-		AV1ImageFile:                      Avif,
-		JPEGFileInterchangeFormat:         Jpeg,
-		JPEG2000:                          Jpeg2000,
-		PortableNetworkGraphics:           Png,
-		GraphicsInterchangeFormat:         Gif,
-		GoogleWebP:                        Webp,
-		TaggedImageFileFormat:             Tiff,
-		BMPFileFormat:                     Bmp,
-		PersonalComputereXchange:          Pcx,
-		InterleavedBitmap:                 Ilbm,
-		MicrosoftIcon:                     Ico,
-		RIPscrip:                          Ripscrip,
-		MPEG4:                             Mp4,
-		QuickTimeMovie:                    QTMov,
-		QuickTimeM4V:                      M4v,
-		MicrosoftAudioVideoInterleave:     Avi,
-		MicrosoftWindowsMedia:             Wmv,
-		MPEG:                              Mpeg,
-		FlashVideo:                        Flv,
-		RealPlayer:                        Real,
-		MusicalInstrumentDigitalInterface: Midi,
-		MPEG1AudioLayer3:                  Mp3,
-		MPEGAdvancedAudioCoding:           AAC,
-		OggVorbisCodec:                    Ogg,
-		FreeLosslessAudioCodec:            Flac,
-		WaveAudioForWindows:               Wave,
-		MusicExtendedModule:               XM,
-		MusicMultiTrackModule:             MTM,
-		MusicImpulseTracker:               IT,
-		MusicProTracker:                   MK,
-		PKWAREZipShrink:                   PkShrink,
-		PKWAREZipReduce:                   PkReduce,
-		PKWAREZipImplode:                  PkImplode,
-		PKWAREZip64:                       Zip64,
-		PKWAREZip:                         Pkzip,
-		PKWAREMultiVolume:                 PkzipMulti,
-		PKLITE:                            Pklite,
-		PKSFX:                             Pksfx,
-		TapeARchive:                       Tar,
-		RoshalARchive:                     Rar,
-		RoshalARchivev5:                   Rarv5,
-		GzipCompressArchive:               Gzip,
-		Bzip2CompressArchive:              Bzip2,
-		X7zCompressArchive:                X7z,
-		XZCompressArchive:                 XZ,
-		ZStandardArchive:                  ZStd,
-		FreeArc:                           ArcFree,
-		ARChiveSEA:                        ArcSEA,
-		YoshiLHA:                          LzhLha,
-		ZooArchive:                        Zoo,
-		ArchiveRobertJung:                 Arj,
-		MicrosoftCABinet:                  Cab,
-		MicrosoftDOSKWAJ:                  DosKWAJ,
-		MicrosoftDOSSZDD:                  DosSZDD,
-		MicrosoftExecutable:               MSExe,
-		MicrosoftCompoundFile:             MSComp,
-		CDISO9660:                         ISO,
-		CDNero:                            Nero,
-		CDPowerISO:                        Daa,
-		CDAlcohol120:                      Mdf,
-		WindowsHelpFile:                   Hlp,
-		PortableDocumentFormat:            Pdf,
-		RichTextFormat:                    Rtf,
-		UTF8Text:                          Utf8,
-		UTF16Text:                         Utf16,
-		UTF32Text:                         Utf32,
-		ElectronicArtsAnim:                IffAnim,
-		PlanarBitMap:                      IffPBM,
-		NoGatePAK:                         Pak,
-		XBinaryText:                       XBin,
-	}
-	return &finds
+func Finds() Finder {
+	return finds
 }
 
 // MatchExt determines if the reader matches the file type signature expected
@@ -488,13 +487,12 @@ func MatchExt(filename string, r io.ReaderAt) (bool, Signature, error) {
 		return false, Find(r), nil
 	}
 
-	finder := defaultFinder()
-
-	for signature, exts := range *Ext() {
+	for signature, exts := range Exts() {
 		if !slices.Contains(exts, ext) {
 			continue
 		}
-		if matcher, ok := finder[signature]; ok && matcher(r) {
+
+		if matcher, ok := finds[signature]; ok && matcher(r) {
 			return true, signature, nil
 		}
 	}
@@ -504,12 +502,6 @@ func MatchExt(filename string, r io.ReaderAt) (bool, Signature, error) {
 
 // Find returns the file type signature from the byte slice.
 func Find(r io.ReaderAt) Signature {
-	return FindWithLogger(nil, r)
-}
-
-// Deprecated: use [FindWithLogger] instead.
-// The io.Writer is unused.
-func FindW(_ io.Writer, r io.ReaderAt) Signature {
 	return FindWithLogger(nil, r)
 }
 
@@ -525,18 +517,19 @@ func matched(sl *slog.Logger, sign Signature) {
 //
 // The logger is optional debugging output and can be [slog.DiscardHandler] or nil.
 func FindWithLogger(sl *slog.Logger, r io.ReaderAt) Signature {
-	if sl == nil {
-		sl = slog.New(slog.DiscardHandler)
-	}
 	if r == nil {
 		return Unknown
 	}
 	if Empty(r) {
 		return ZeroByte
 	}
-	matchers := defaultFinder()
+
+	if sl == nil {
+		sl = slog.New(slog.DiscardHandler)
+	}
+
 	skip := [2]Signature{ARChiveSEA, ElectronicArtsIFF}
-	for sign, matcher := range matchers {
+	for sign, matcher := range finds {
 		if slices.Contains(skip[:], sign) {
 			continue
 		}
@@ -545,21 +538,27 @@ func FindWithLogger(sl *slog.Logger, r io.ReaderAt) Signature {
 			return sign
 		}
 	}
+
 	sign := Unknown
-	switch {
-	// do manual, ordered checks here to avoid false positives.
+	switch { // do manual, ordered checks here to avoid false positives.
 	case Iff(r): // conflicts with other IFF containers
 		sign = ElectronicArtsIFF
+
 	case ArcSEA(r): // conflicts with NoGatePAK
 		sign = ARChiveSEA
+
 	case AnsiWithLogger(sl, r):
 		sign = ANSIEscapeText
+
 	case CodePageWithLogger(sl, r):
 		sign = PlainText
+
 	case Txt(r):
 		sign = PlainText
+
 	case XBin(r):
 		sign = XBinaryText
+
 	default:
 	}
 	matched(sl, sign)
@@ -612,4 +611,25 @@ func Length(r io.ReaderAt) int64 {
 	_, _ = seeker.Seek(offset, restore)
 
 	return seekEnd
+}
+
+// Deprecated: use [FindWithLogger] instead.
+// The io.Writer is unused.
+func FindW(_ io.Writer, r io.ReaderAt) Signature {
+	return FindWithLogger(nil, r)
+}
+
+// Deprecated: use [Exts] instead.
+// Ext returns a map of file type signatures to common file extensions.
+func Ext() *Extension {
+	return &extensions
+}
+
+// Deprecated: use [Finds] instead.
+// New returns a new Finder with all the matchers.
+//
+// ANSIEscapeText and PlainText are not included as they need to be
+// checked separately and in a specific order.
+func New() *Finder {
+	return &finds
 }

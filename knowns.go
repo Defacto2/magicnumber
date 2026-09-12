@@ -1,3 +1,4 @@
+//nolint:gochecknoglobals
 package magicnumber
 
 import (
@@ -71,10 +72,13 @@ func Document(r io.ReaderAt) (Signature, error) {
 	switch {
 	case Ansi(r):
 		return ANSIEscapeText, nil
+
 	case CodePage(r):
 		return PlainText, nil
+
 	case Txt(r):
 		return PlainText, nil
+
 	default:
 		return Unknown, nil
 	}
@@ -160,10 +164,13 @@ func TextWithLogger(sl *slog.Logger, r io.ReaderAt) (Signature, error) {
 	switch {
 	case AnsiWithLogger(sl, r):
 		return ANSIEscapeText, nil
+
 	case CodePageWithLogger(sl, r):
 		return PlainText, nil
+
 	case TxtWithLogger(sl, r):
 		return PlainText, nil
+
 	default:
 		sl.Debug(msg + " returned a default, unknown")
 		return Unknown, nil
@@ -201,18 +208,17 @@ type sigMatcher struct {
 	matcher Matcher
 }
 
-var archives = sync.OnceValue(func() []sigMatcher { //nolint:gochecknoglobals
-	find := defaultFinder()
+var archives = sync.OnceValue(func() []sigMatcher {
 	var matchers []sigMatcher
 	for _, pack := range packs {
-		if m, exists := find[pack]; exists {
+		if m, exists := finds[pack]; exists {
 			matchers = append(matchers, sigMatcher{sig: pack, matcher: m})
 		}
 	}
 	return matchers
 })
 
-var packs = []Signature{ //nolint:gochecknoglobals
+var packs = []Signature{
 	PKWAREZipShrink,
 	PKWAREZipReduce,
 	PKWAREZipImplode,
@@ -238,7 +244,7 @@ var packs = []Signature{ //nolint:gochecknoglobals
 	MicrosoftCABinet,
 }
 
-var bbsPacks = []Signature{ //nolint:gochecknoglobals
+var bbsPacks = []Signature{
 	PKWAREZipShrink,
 	PKWAREZipReduce,
 	PKWAREZipImplode,
@@ -249,36 +255,34 @@ var bbsPacks = []Signature{ //nolint:gochecknoglobals
 	NoGatePAK,
 }
 
-var discImages = sync.OnceValue(func() []sigMatcher { //nolint:gochecknoglobals
-	find := defaultFinder()
+var discImages = sync.OnceValue(func() []sigMatcher {
 	var matchers []sigMatcher
 	for _, disc := range discs {
-		if m, exists := find[disc]; exists {
+		if m, exists := finds[disc]; exists {
 			matchers = append(matchers, sigMatcher{sig: disc, matcher: m})
 		}
 	}
 	return matchers
 })
 
-var discs = []Signature{ //nolint:gochecknoglobals
+var discs = []Signature{
 	CDISO9660,
 	CDNero,
 	CDPowerISO,
 	CDAlcohol120,
 }
 
-var documents = sync.OnceValue(func() []sigMatcher { //nolint:gochecknoglobals
-	find := defaultFinder()
+var documents = sync.OnceValue(func() []sigMatcher {
 	var matchers []sigMatcher
 	for _, doc := range docs {
-		if m, exists := find[doc]; exists {
+		if m, exists := finds[doc]; exists {
 			matchers = append(matchers, sigMatcher{sig: doc, matcher: m})
 		}
 	}
 	return matchers
 })
 
-var docs = []Signature{ //nolint:gochecknoglobals
+var docs = []Signature{
 	WindowsHelpFile,
 	PortableDocumentFormat,
 	RichTextFormat,
@@ -287,18 +291,17 @@ var docs = []Signature{ //nolint:gochecknoglobals
 	UTF32Text,
 }
 
-var images = sync.OnceValue(func() []sigMatcher { //nolint:gochecknoglobals
-	find := defaultFinder()
+var images = sync.OnceValue(func() []sigMatcher {
 	var matchers []sigMatcher
 	for _, img := range imgs {
-		if m, exists := find[img]; exists {
+		if m, exists := finds[img]; exists {
 			matchers = append(matchers, sigMatcher{sig: img, matcher: m})
 		}
 	}
 	return matchers
 })
 
-var imgs = []Signature{ //nolint:gochecknoglobals
+var imgs = []Signature{
 	AV1ImageFile,
 	JPEGFileInterchangeFormat,
 	JPEG2000,
@@ -315,29 +318,27 @@ var imgs = []Signature{ //nolint:gochecknoglobals
 	ElectronicArtsIFF,
 }
 
-var programs = sync.OnceValue(func() []sigMatcher { //nolint:gochecknoglobals
-	find := defaultFinder()
+var programs = sync.OnceValue(func() []sigMatcher {
 	var matchers []sigMatcher
 	for _, prog := range progs {
-		if m, exists := find[prog]; exists {
+		if m, exists := finds[prog]; exists {
 			matchers = append(matchers, sigMatcher{sig: prog, matcher: m})
 		}
 	}
 	return matchers
 })
 
-var progs = []Signature{ //nolint:gochecknoglobals
+var progs = []Signature{
 	MicrosoftExecutable,
 	MicrosoftDOSKWAJ,
 	MicrosoftDOSSZDD,
 	MicrosoftCompoundFile,
 }
 
-var texts = sync.OnceValue(func() []sigMatcher { //nolint:gochecknoglobals
-	find := defaultFinder()
+var texts = sync.OnceValue(func() []sigMatcher {
 	var matchers []sigMatcher
 	for _, txt := range txts {
-		if m, exists := find[txt]; exists {
+		if m, exists := finds[txt]; exists {
 			matchers = append(matchers, sigMatcher{sig: txt, matcher: m})
 		}
 	}
@@ -352,18 +353,17 @@ var txts = []Signature{ //nolint:gochecknoglobals
 	PlainText,
 }
 
-var videos = sync.OnceValue(func() []sigMatcher { //nolint:gochecknoglobals
-	find := defaultFinder()
+var videos = sync.OnceValue(func() []sigMatcher {
 	var matchers []sigMatcher
 	for _, vid := range vids {
-		if m, exists := find[vid]; exists {
+		if m, exists := finds[vid]; exists {
 			matchers = append(matchers, sigMatcher{sig: vid, matcher: m})
 		}
 	}
 	return matchers
 })
 
-var vids = []Signature{ //nolint:gochecknoglobals
+var vids = []Signature{
 	MPEG4,
 	QuickTimeMovie,
 	QuickTimeM4V,

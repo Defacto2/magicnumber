@@ -1,3 +1,4 @@
+//nolint:paralleltest
 package magicnumber_test
 
 import (
@@ -12,11 +13,13 @@ import (
 
 func windows(t *testing.T, name string) string {
 	t.Helper()
+
 	return pathFile(t, filepath.Join("binaries", "windows", name))
 }
 
 func TestMSExe(t *testing.T) {
 	t.Parallel()
+
 	t.Log("TestMSExe")
 	r, err := os.Open(windows(t, "hellojs.com"))
 	be.Err(t, err, nil)
@@ -26,6 +29,7 @@ func TestMSExe(t *testing.T) {
 
 func TestFindBytesExecutableFreeDOS(t *testing.T) {
 	t.Parallel()
+
 	got, err := magicnumber.FindExecutable(nil)
 	be.Err(t, err)
 	be.Equal(t, got.PE, magicnumber.UnknownPE)
@@ -37,11 +41,14 @@ func TestFindBytesExecutableFreeDOS(t *testing.T) {
 		filepath.Join("press", "PRESS.EXE"),
 		filepath.Join("rread", "rread.exe"),
 	}
+
 	for n, name := range freedos[:] {
 		t.Log(n, name)
+
 		p, err := os.Open(pathFile(t, filepath.Join("binaries", "freedos", name)))
 		be.Err(t, err, nil)
 		defer p.Close()
+
 		got, err = magicnumber.FindExecutable(p)
 		be.Err(t, err, nil)
 		be.Equal(t, got.PE, magicnumber.UnknownPE)

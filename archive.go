@@ -1,3 +1,4 @@
+//nolint:cyclop
 package magicnumber
 
 // Package file archive.go contains the functions that parse bytes as common file archive,
@@ -160,14 +161,19 @@ func pkMethod(n uint16) pkComp {
 	switch n {
 	case store, deflate, deflate64:
 		return pkZip
+
 	case shrink:
 		return pkSkrink
+
 	case reduce1, reduce2, reduce3, reduce4:
 		return pkReduce
+
 	case implode:
 		return pkImplode
+
 	case ibmTerse, bzip2, lzma, ibmCMPSC, ibmTerseNew, ibmLZ77z, zstd, mp3, xz, jpeg, wavPack, ppmd, ae:
 		return pkZip
+
 	default:
 		return pkNone
 	}
@@ -461,10 +467,12 @@ func Pak(r io.ReaderAt) bool {
 		arc = 0x1A
 		pak = 0xFE
 	)
+
 	eofARC := p[0] == arc && p[1] == nul
 	eofPAK := p[0] == pak && p[1] == nul
 	if methodNoGate && (eofARC || eofPAK) {
 		return true
 	}
+
 	return p[0] == pak && p[1] == nul
 }
