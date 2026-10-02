@@ -198,6 +198,16 @@ func TestUnknowns(t *testing.T) {
 	be.Equal(t, got, magicnumber.ZeroByte)
 }
 
+func TestLastSignature(t *testing.T) {
+	t.Parallel()
+
+	const got = magicnumber.LastSignature
+
+	// test for panic conditions when modifying the list of titles and names
+	be.Equal(t, got.String(), "XBIN binary text")
+	be.Equal(t, got.Title(), "XBIN extended binary text")
+}
+
 func TestFind(t *testing.T) {
 	t.Parallel()
 	// walk the assets directory

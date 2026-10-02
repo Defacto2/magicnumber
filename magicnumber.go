@@ -35,8 +35,8 @@ var ErrNilReader = errors.New("nil reader")
 type Signature int
 
 const (
-	ZeroByte Signature = iota - 2
-	Unknown
+	ZeroByte Signature = iota - 1
+	Unknown            // INFO: To act as a default, Unknown should always be the 0 value
 	ElectronicArtsIFF
 	AV1ImageFile
 	JPEGFileInterchangeFormat
@@ -113,6 +113,9 @@ const (
 	XBinaryText
 )
 
+// LastSignature will always return XBinaryText,
+// and must be the last Signature value.
+// However its int value may change as new Signature entries get added.
 const LastSignature = XBinaryText
 
 const (
@@ -133,6 +136,7 @@ func (sign Signature) String() string { //nolint:funlen
 		return "error"
 	}
 	return [...]string{
+		"", // already returned
 		"IFF image",
 		"AV1 image",
 		"JPEG image",
@@ -220,6 +224,7 @@ func (sign Signature) Title() string { //nolint:funlen
 		return "Error"
 	}
 	return [...]string{
+		"", // already returned
 		"Electronic Arts IFF",
 		"AV1 Image File",
 		"JPEG File Interchange Format",
