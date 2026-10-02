@@ -741,3 +741,79 @@ func XBin(r io.ReaderAt) bool {
 	}
 	return p == [5]byte{'X', 'B', 'I', 'N', 0x1a}
 }
+
+// DumpCGA uses heuristics to discover 4-bit, RGBI Video RAM screen dumps
+// of colored text that also included some styling bits.
+// While CGA was the most common IBM PC hardware to use the 4-bit palette,
+// it was also used by Tandy's PCs, and the IBM PCjr.
+//
+// The dump uses simple byte pairs and is far more efficient for PCs
+// of the 1980s than parsing ANSI encoded text.
+//
+// The first byte is an 8-bit character, usually representing a
+// code point from IBM's Code Page 437.
+//
+// The second byte is the display attributes:
+//   - 0-2 bits are the three bits for one of eight foreground colors
+//   - bit 3 is the foreground intensity, often a "bright" toggle
+//   - 4-6 bits are the three bits for the one of eight background colors
+//   - bit 7 is the background intensity, often a "blink" toggle
+//
+// This test makes a few assumptions.
+//   - The background color is always set to black.
+//   - A CGA screen dump is always 80 columns and 25 rows.
+//   - The reader is 4000 characters or padded to 4KB (4096 characters).
+//   - When 4KB, the extra 48 characters are all spaces,
+//     using the default IBM DOS gray on black text mode color attributes.
+func DumpCGA(r io.ReaderAt) bool {
+	if r == nil {
+		return false
+	}
+
+	background := func(b byte) uint8 {
+		return (b >> 4) & 0x07 //nolint:mnd
+	}
+
+	const (
+		cols   = 80
+		rows   = 25
+		screen = cols * rows * 2
+
+		padding = 96
+		padded  = screen + padding
+
+		attrib = 2
+		space  = 0x20
+	)
+
+	size := Length(r)
+	if size != screen && size != padded {
+		return false
+	}
+
+	buf := make([]byte, screen)
+	if _, err := r.ReadAt(buf, 0); err != nil && err != io.EOF {
+		return false
+	}
+
+	for i := 1; i < screen; i += attrib {
+		if background(buf[i]) != 0 {
+			return false
+		}
+	}
+	if size == screen {
+		return true
+	}
+
+	buf = make([]byte, padding)
+	if _, err := r.ReadAt(buf, screen); err != nil && err != io.EOF {
+		return false
+	}
+	for i := 0; i < len(buf)-1; i += attrib {
+		if buf[i] != space || background(buf[i+1]) != 0 {
+			return false
+		}
+	}
+
+	return true
+}

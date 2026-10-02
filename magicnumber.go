@@ -109,6 +109,7 @@ const (
 	ElectronicArtsAnim
 	PlanarBitMap
 	NoGatePAK
+	CGAVideoDump
 	XBinaryText
 )
 
@@ -204,6 +205,7 @@ func (sign Signature) String() string { //nolint:funlen
 		"IFF ANIM image",
 		"IFF PBM image",
 		"PAK archive",
+		"CGA screen dump",
 		"XBIN binary text",
 	}[sign]
 }
@@ -290,6 +292,7 @@ func (sign Signature) Title() string { //nolint:funlen
 		"Electronic Arts IFF animation",
 		"IFF Planar BitMap",
 		"PAK archive by NoGate",
+		"IBM CGA video RAM dump",
 		"XBIN extended binary text",
 	}[sign]
 }
@@ -370,6 +373,7 @@ var extensions = Extension{
 	ElectronicArtsAnim:                []string{iiff, ".anm"},
 	PlanarBitMap:                      []string{iiff, ".lbm"},
 	NoGatePAK:                         []string{".pak"},
+	CGAVideoDump:                      []string{".bin", ".dat", ",.scr", ".tpg"},
 	XBinaryText:                       []string{".xb", ".bin"},
 }
 
@@ -455,6 +459,7 @@ var finds = Finder{
 	ElectronicArtsAnim:                IffAnim,
 	PlanarBitMap:                      IffPBM,
 	NoGatePAK:                         Pak,
+	CGAVideoDump:                      DumpCGA,
 	XBinaryText:                       XBin,
 }
 

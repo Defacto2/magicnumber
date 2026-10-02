@@ -312,3 +312,18 @@ func TestTextTxtW(t *testing.T) {
 		be.True(t, got)
 	})
 }
+
+func TestDumpCGA(t *testing.T) {
+	t.Parallel()
+
+	t.Log("TestDumpCGA")
+	r, err := os.Open(pathFile(t, "SPYHUNT.TPG"))
+	be.Err(t, err, nil)
+	defer r.Close()
+	be.True(t, magicnumber.DumpCGA(r))
+
+	got := magicnumber.Find(r)
+	be.Equal(t, got, magicnumber.CGAVideoDump)
+	s := got.Title()
+	be.Equal(t, s, "IBM CGA video RAM dump")
+}
