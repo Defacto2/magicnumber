@@ -759,19 +759,22 @@ func XBin(r io.ReaderAt) bool {
 //   - 4-6 bits are the three bits for the one of eight background colors
 //   - bit 7 is the background intensity, often a "blink" toggle
 //
-// This test makes a few assumptions.
-//   - The background color is always set to black.
+// This test does two reads while looking for specific patterns:
 //   - A CGA screen dump is always 80 columns and 25 rows.
-//   - The reader is 4000 characters or padded to 4KB (4096 characters).
-//   - When 4KB, the extra 48 characters are all spaces,
-//     using the default IBM DOS gray on black text mode color attributes.
+//   - The reader is equal to or multiples of 4000 characters
+//     or padded to 4KB (4096 characters).
+//   - On the first read, it looks at every attribute byte to
+//     confirm the blinking bit is always off,
+//     leaving 128 of 256 possible bit combinations.
+//   - If the first read doesn't pass, the second read assumes
+//     the blink attribute is in use, and looks for an 1980s
+//     era screen dump, and instead confirms every attribute byte is using
+//     a black background.
+//
+// Hopefully, this is enough to stop the majority of false positives.
 func DumpCGA(r io.ReaderAt) bool {
 	if r == nil {
 		return false
-	}
-
-	background := func(b byte) uint8 {
-		return (b >> 4) & 0x07 //nolint:mnd
 	}
 
 	const (
@@ -782,12 +785,14 @@ func DumpCGA(r io.ReaderAt) bool {
 		padding = 96
 		padded  = screen + padding
 
-		attrib = 2
-		space  = 0x20
+		attrib  = 2
+		space   = 0x20
+		blackBG = 0x70
+		blink   = 0x80
 	)
 
 	size := Length(r)
-	if size != screen && size != padded {
+	if size == 0 || (size%screen != 0 && size%padded != 0) {
 		return false
 	}
 
@@ -796,24 +801,36 @@ func DumpCGA(r io.ReaderAt) bool {
 		return false
 	}
 
-	for i := 1; i < screen; i += attrib {
-		if background(buf[i]) != 0 {
-			return false
+	ok := true
+	for i := 0; i < screen-1; i += attrib {
+		if (buf[i+1] & blink) != 0 {
+			ok = false
+			break
 		}
 	}
-	if size == screen {
+	if ok {
 		return true
 	}
 
-	buf = make([]byte, padding)
-	if _, err := r.ReadAt(buf, screen); err != nil && err != io.EOF {
-		return false
-	}
-	for i := 0; i < len(buf)-1; i += attrib {
-		if buf[i] != space || background(buf[i+1]) != 0 {
+	for i := 1; i < screen; i += attrib {
+		if (buf[i] & blackBG) != 0 {
 			return false
 		}
 	}
-
+	// 3-oct-26: disabled this padding check for now
+	// if size == screen {
+	// 	return true
+	// }
+	//
+	// buf = make([]byte, padding)
+	// if _, err := r.ReadAt(buf, screen); err != nil && err != io.EOF {
+	// 	return false
+	// }
+	// for i := 0; i < len(buf)-1; i += attrib {
+	// 	if buf[i] != space || background(buf[i+1]) != 0 {
+	// 		return false
+	// 	}
+	// }
+	//
 	return true
 }
