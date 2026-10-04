@@ -316,6 +316,7 @@ var imgs = []Signature{
 	RIPscrip,
 	ElectronicArtsAnim,
 	ElectronicArtsIFF,
+	PlanarBitMap,
 }
 
 var programs = sync.OnceValue(func() []sigMatcher {
