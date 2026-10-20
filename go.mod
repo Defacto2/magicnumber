@@ -8,7 +8,7 @@ require (
 )
 
 require (
-	github.com/klauspost/compress v1.18.0 // indirect
+	github.com/klauspost/compress v1.18.7 // indirect
 	go.uber.org/nilaway v0.0.0-20251119034912-44f92224c998 // indirect
 	golang.org/x/mod v0.41.0 // indirect
 	golang.org/x/sync v0.24.0 // indirect
