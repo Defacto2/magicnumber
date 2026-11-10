@@ -5,6 +5,7 @@ package magicnumber
 // compression and disk image formats.
 
 import (
+	"bytes"
 	"io"
 )
 
@@ -437,42 +438,40 @@ func Cab(r io.ReaderAt) bool {
 // Pak matches the NoGate Consulting PAK format.
 func Pak(r io.ReaderAt) bool {
 	size := Length(r)
-	const minimum = 4
+	const minimum = 29
 	if size < minimum {
 		return false
 	}
 
-	var p [2]byte
+	var p [15]byte
 	if _, err := r.ReadAt(p[:], 0); err != nil {
 		return false
 	}
 
-	const arcMarker = 0x1a
-	if p[0] != arcMarker {
+	const dos = 0x1A // → (right arrow)
+	mark := p[0]
+	if mark != dos {
+		// the first byte must be 0x1a for both arc and pak
 		return false
 	}
 
-	const crushed = 0x0A
-	const distilled = 0x0B
-	methodNoGate := p[1] == crushed || p[1] == distilled
-
-	const two = 2
-	off := size - two
-	if _, err := r.ReadAt(p[:], off); err != nil {
+	method := p[1]
+	const crushed = 0x0A   // ◙ (bullet)
+	const distilled = 0x0B // ♂ (male)
+	if method < crushed {
+		// methods 1 to 9 are MS-DOS ARC packages
+		return false
+	}
+	if method > distilled {
+		// methods larger than 11 are commonly used by obsolite PKZIP methods
 		return false
 	}
 
-	const (
-		nul = 0x00
-		arc = 0x1A
-		pak = 0xFE
-	)
-
-	eofARC := p[0] == arc && p[1] == nul
-	eofPAK := p[0] == pak && p[1] == nul
-	if methodNoGate && (eofARC || eofPAK) {
-		return true
+	// check for a filename validity
+	name := bytes.TrimRight(p[2:15], "\x00")
+	if len(name) == 0 || len(name) > 12 {
+		return false
 	}
 
-	return p[0] == pak && p[1] == nul
+	return true
 }
