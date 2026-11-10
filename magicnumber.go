@@ -109,6 +109,7 @@ const (
 	ElectronicArtsAnim
 	PlanarBitMap
 	NoGatePAK
+	LibraryUtility
 	CGAVideoDump
 	XBinaryText
 )
@@ -209,6 +210,7 @@ func (sign Signature) String() string { //nolint:funlen
 		"IFF ANIM image",
 		"IFF PBM image",
 		"PAK archive",
+		"Library archive",
 		"CGA screen dump",
 		"XBIN binary text",
 	}[sign]
@@ -297,6 +299,7 @@ func (sign Signature) Title() string { //nolint:funlen
 		"Electronic Arts IFF animation",
 		"IFF Planar BitMap",
 		"PAK archive by NoGate",
+		"Library Utility archive",
 		"IBM CGA video RAM dump",
 		"XBIN extended binary text",
 	}[sign]
@@ -378,6 +381,7 @@ var extensions = Extension{
 	ElectronicArtsAnim:                []string{iiff, ".anm"},
 	PlanarBitMap:                      []string{iiff, ".lbm"},
 	NoGatePAK:                         []string{".pak"},
+	LibraryUtility:                    []string{".lbr"},
 	CGAVideoDump:                      []string{".bin", ".dat", ",.scr", ".tpg"},
 	XBinaryText:                       []string{".xb", ".bin"},
 }
@@ -464,6 +468,7 @@ var finds = Finder{
 	ElectronicArtsAnim:                IffAnim,
 	PlanarBitMap:                      IffPBM,
 	NoGatePAK:                         Pak,
+	LibraryUtility:                    LU,
 	CGAVideoDump:                      DumpCGA,
 	XBinaryText:                       XBin,
 }
@@ -538,7 +543,11 @@ func FindWithLogger(sl *slog.Logger, r io.ReaderAt) Signature {
 		sl = slog.New(slog.DiscardHandler)
 	}
 
-	skip := [2]Signature{ARChiveSEA, ElectronicArtsIFF}
+	skip := [...]Signature{
+		ElectronicArtsIFF,
+		ARChiveSEA,
+		CGAVideoDump,
+	}
 	for sign, matcher := range finds {
 		if slices.Contains(skip[:], sign) {
 			continue
@@ -550,7 +559,10 @@ func FindWithLogger(sl *slog.Logger, r io.ReaderAt) Signature {
 	}
 
 	sign := Unknown
-	switch { // do manual, ordered checks here to avoid false positives.
+	switch {
+	// do manual, ordered checks here to avoid false positives
+	// INFO: don't forget to update, skip :=[]Signature{}
+
 	case Iff(r): // conflicts with other IFF containers
 		sign = ElectronicArtsIFF
 
@@ -559,6 +571,9 @@ func FindWithLogger(sl *slog.Logger, r io.ReaderAt) Signature {
 
 	case AnsiWithLogger(sl, r):
 		sign = ANSIEscapeText
+
+	case DumpCGA(r): // causes false positives with CDISO etc.
+		sign = CGAVideoDump
 
 	case CodePageWithLogger(sl, r):
 		sign = PlainText

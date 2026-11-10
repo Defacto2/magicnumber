@@ -237,6 +237,7 @@ var packs = []Signature{
 	ZStandardArchive,
 	FreeArc,
 	NoGatePAK, // NoGatePAK must go before ARChiveSEA
+	LibraryUtility,
 	ARChiveSEA,
 	YoshiLHA,
 	ZooArchive,

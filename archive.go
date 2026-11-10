@@ -475,3 +475,68 @@ func Pak(r io.ReaderAt) bool {
 
 	return true
 }
+
+func LU(r io.ReaderAt) bool {
+	size := Length(r)
+	const minimum = 128
+	if size < minimum {
+		return false
+	}
+
+	buf := make([]byte, minimum)
+	if _, err := r.ReadAt(buf, 0); err != nil {
+		if err == io.EOF {
+			return false
+		}
+		return false
+	}
+
+	finds := 0
+	const active = 0x00
+	const unused = 0xff
+	const space = 0x20
+	const item = 8 + 3 // cp/m, pcdos, msdos filename limitations
+
+	if buf[0] != active {
+		return false
+	}
+	for j := 1; j <= item; j++ {
+		if buf[j] != space {
+			return false
+		}
+	}
+
+	for i := 0; i < minimum; i += 32 {
+		status := buf[i]
+		if status != active && status != unused {
+			continue
+		}
+		named := true
+		chars := false
+		for j := 1; j <= item; j++ {
+			b := buf[i+j]
+			switch {
+			case b >= 'A' && b <= 'Z',
+				b >= '0' && b <= '9',
+				b == '$',
+				b == '=',
+				b == '_':
+				chars = true
+			case b == space:
+				// do nothing, it is valid padding, but not used in filenames
+			default:
+				named = false
+			}
+			if !named {
+				break
+			}
+		}
+		if named && chars {
+			if status == active {
+				finds++
+			}
+		}
+	}
+
+	return finds > 0
+}
