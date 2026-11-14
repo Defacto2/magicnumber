@@ -228,6 +228,7 @@ var packs = []Signature{
 	PKLITE,
 	PKSFX,
 	TapeARchive,
+	RoshalARchive93,
 	RoshalARchive,
 	RoshalARchivev5,
 	GzipCompressArchive,

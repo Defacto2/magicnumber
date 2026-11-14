@@ -203,6 +203,20 @@ func Tar(r io.ReaderAt) bool {
 	return p[5] == posixTar || p[5] == gnuTar
 }
 
+// Rar93 matches the Roshal ARchive format, RAR v1.3 (1993).
+func Rar93(r io.ReaderAt) bool {
+	if r == nil {
+		return false
+	}
+
+	var p [4]byte
+	if n, err := r.ReadAt(p[:], 0); (err != nil && err != io.EOF) || n < 4 {
+		return false
+	}
+
+	return p == [4]byte{'R', 'E', '~', '^'}
+}
+
 // Rar matches the Roshal ARchive format, RAR v1 to RAR v4.
 func Rar(r io.ReaderAt) bool {
 	if r == nil {

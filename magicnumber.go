@@ -77,6 +77,7 @@ const (
 	PKLITE
 	PKSFX
 	TapeARchive
+	RoshalARchive93
 	RoshalARchive
 	RoshalARchivev5
 	GzipCompressArchive
@@ -178,6 +179,7 @@ func (sign Signature) String() string { //nolint:funlen
 		"pklite compressed",
 		"self-extracting zip",
 		"Tape archive",
+		"RAR 93 archive",
 		"RAR archive",
 		"RAR v5+ archive",
 		"Gzip archive",
@@ -267,6 +269,7 @@ func (sign Signature) Title() string { //nolint:funlen
 		"PKLITE compressed executable",
 		"PKSFX self-extracting archive",
 		"Tape Archive",
+		"Roshal Archive 93",
 		"Roshal Archive",
 		"Roshal Archive v5",
 		"Gzip compress archive",
@@ -349,6 +352,7 @@ var extensions = Extension{
 	PKLITE:                            []string{zzip},
 	PKSFX:                             []string{zzip},
 	TapeARchive:                       []string{".tar"},
+	RoshalARchive93:                   []string{".rar"},
 	RoshalARchive:                     []string{".rar"},
 	RoshalARchivev5:                   []string{".rar"},
 	GzipCompressArchive:               []string{".gz"},
@@ -438,6 +442,7 @@ var finds = Finder{
 	PKLITE:                            Pklite,
 	PKSFX:                             Pksfx,
 	TapeARchive:                       Tar,
+	RoshalARchive93:                   Rar93,
 	RoshalARchive:                     Rar,
 	RoshalARchivev5:                   Rarv5,
 	GzipCompressArchive:               Gzip,

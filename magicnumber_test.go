@@ -288,9 +288,10 @@ func TestFind(t *testing.T) {
 		case ".PNG":
 			be.Equal(t, got, magicnumber.PortableNetworkGraphics)
 		case ".RAR":
-			signs := [2]magicnumber.Signature{
+			signs := [3]magicnumber.Signature{
 				magicnumber.RoshalARchivev5,
 				magicnumber.RoshalARchive,
+				magicnumber.RoshalARchive93,
 			}
 			be.True(t, slices.Contains(signs[:], got))
 		case ".TAR":

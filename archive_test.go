@@ -263,3 +263,16 @@ func TestRar(t *testing.T) {
 	got := magicnumber.Find(r)
 	be.Equal(t, got, magicnumber.RoshalARchive)
 }
+
+func TestRar93(t *testing.T) {
+	t.Parallel()
+	t.Log("TestRar93")
+	r := bytes.NewReader([]byte{'R', 'E', '~', '^', 0x00})
+	be.True(t, magicnumber.Rar93(r))
+	be.Equal(t, magicnumber.Find(r), magicnumber.RoshalARchive93)
+	sign, err := magicnumber.Archive(r)
+	be.Err(t, err, nil)
+	be.Equal(t, sign, magicnumber.RoshalARchive93)
+	be.True(t, !magicnumber.Rar93(bytes.NewReader([]byte{'R', 'E', '~'})))
+	be.True(t, !magicnumber.Rar93(nil))
+}
