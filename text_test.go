@@ -326,4 +326,37 @@ func TestDumpCGA(t *testing.T) {
 	be.Equal(t, got, magicnumber.CGAVideoDump)
 	s := got.Title()
 	be.Equal(t, s, "IBM CGA video RAM dump")
+
+	// 4096-byte plain ASCII text should be PlainText, not CGAVideoDump.
+	ascii4k := strings.NewReader(strings.Repeat("Hello world!\n", 316)[:4096])
+	be.Equal(t, magicnumber.Find(ascii4k), magicnumber.PlainText)
+
+	// All-zero 4096-byte file must not match DumpCGA.
+	zeros := bytes.NewReader(make([]byte, 4096))
+	be.True(t, !magicnumber.DumpCGA(zeros))
+
+	// BSAVE header (0xFD, B800:0000, length 4000) + 80x25 CGA screen.
+	bsave := make([]byte, 7+4000)
+	bsave[0] = 0xFD
+	bsave[1], bsave[2] = 0x00, 0xB8
+	bsave[5], bsave[6] = 0xA0, 0x0F // 4000 little-endian
+	for i := 7; i < len(bsave); i += 2 {
+		bsave[i] = ' '
+		bsave[i+1] = 0x07
+	}
+	br := bytes.NewReader(bsave)
+	be.True(t, magicnumber.DumpCGA(br))
+	be.Equal(t, magicnumber.Find(br), magicnumber.CGAVideoDump)
+
+	// 80x43 EGA text dump (6880 bytes) with blink (0x8E) on black background.
+	ega := make([]byte, 6880)
+	for i := 0; i < len(ega); i += 2 {
+		ega[i] = '#'
+		if i < 160 {
+			ega[i+1] = 0x8E
+		} else {
+			ega[i+1] = 0x0F
+		}
+	}
+	be.True(t, magicnumber.DumpCGA(bytes.NewReader(ega)))
 }

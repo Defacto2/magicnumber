@@ -782,55 +782,90 @@ func DumpCGA(r io.ReaderAt) bool {
 		rows   = 25
 		screen = cols * rows * 2
 
+		egaRows = 43
+		ega43   = cols * egaRows * 2
+
 		padding = 96
 		padded  = screen + padding
 
 		attrib  = 2
-		space   = 0x20
 		blackBG = 0x70
 		blink   = 0x80
 	)
 
 	size := Length(r)
-	if size == 0 || (size%screen != 0 && size%padded != 0) {
+	if size == 0 {
+		return false
+	}
+
+	offset, ok := cgaDumpOffset(r, size, screen, padded, ega43)
+	if !ok {
 		return false
 	}
 
 	buf := make([]byte, screen)
-	if _, err := r.ReadAt(buf, 0); err != nil && err != io.EOF {
+	if _, err := r.ReadAt(buf, offset); err != nil && err != io.EOF {
 		return false
 	}
 
-	ok := true
-	for i := 0; i < screen-1; i += attrib {
-		if (buf[i+1] & blink) != 0 {
-			ok = false
-			break
-		}
-	}
-	if ok {
-		return true
-	}
+	blinkFree := true
+	blackOnly := true
+	hasNonZeroAttr := false
 
 	for i := 1; i < screen; i += attrib {
-		if (buf[i] & blackBG) != 0 {
+		attr := buf[i]
+		if attr != 0 {
+			hasNonZeroAttr = true
+		}
+		if (attr & blink) != 0 {
+			blinkFree = false
+		}
+		if (attr & blackBG) != 0 {
+			blackOnly = false
+		}
+	}
+
+	if !hasNonZeroAttr || looksLikeASCIIText(buf) {
+		return false
+	}
+	return blinkFree || blackOnly
+}
+
+func looksLikeASCIIText(buf []byte) bool {
+	hasNewline := false
+	for _, b := range buf {
+		switch {
+		case b == '\n':
+			hasNewline = true
+		case b == '\t' || b == '\r' || (b >= 0x20 && b <= 0x7E):
+		default:
 			return false
 		}
 	}
-	// 3-oct-26: disabled this padding check for now
-	// if size == screen {
-	// 	return true
-	// }
-	//
-	// buf = make([]byte, padding)
-	// if _, err := r.ReadAt(buf, screen); err != nil && err != io.EOF {
-	// 	return false
-	// }
-	// for i := 0; i < len(buf)-1; i += attrib {
-	// 	if buf[i] != space || background(buf[i+1]) != 0 {
-	// 		return false
-	// 	}
-	// }
-	//
-	return true
+	return hasNewline
+}
+
+func cgaDumpOffset(r io.ReaderAt, size, screen, padded, ega43 int64) (int64, bool) {
+	const (
+		bsaveHeader = 7
+		bsaveMagic  = 0xFD
+		segCGA      = 0xB800
+		segMDA      = 0xB000
+	)
+	if size >= bsaveHeader+screen {
+		var hdr [bsaveHeader]byte
+		if n, err := r.ReadAt(hdr[:], 0); (err == nil || err == io.EOF) && n == bsaveHeader && hdr[0] == bsaveMagic {
+			seg := uint16(hdr[1]) | uint16(hdr[2])<<8
+			payloadLen := int64(uint16(hdr[5]) | uint16(hdr[6])<<8)
+			if (seg == segCGA || seg == segMDA) && size == bsaveHeader+payloadLen &&
+				(payloadLen%screen == 0 || payloadLen%padded == 0 || payloadLen == ega43) {
+				return bsaveHeader, true
+			}
+		}
+	}
+
+	if size%screen == 0 || size%padded == 0 || size == ega43 {
+		return 0, true
+	}
+	return 0, false
 }
