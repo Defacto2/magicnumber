@@ -394,8 +394,82 @@ func TestDumpCGAGraphics(t *testing.T) {
 	// All-zero 16KB file must not match
 	be.True(t, !magicnumber.DumpCGAGraphics(bytes.NewReader(make([]byte, 16384))))
 
-	// Non-zero byte in inter-bank gap must not match
+	// Mostly non-zero inter-bank and trailing gaps must not match
 	badGap := append([]byte{}, raw...)
-	badGap[8000] = 0x01
+	for i := 8000; i < 8064; i++ {
+		badGap[i] = 0x01
+	}
+	for i := 16192; i < 16256; i++ {
+		badGap[i] = 0x01
+	}
 	be.True(t, !magicnumber.DumpCGAGraphics(bytes.NewReader(badGap)))
+
+	// PCPaint V1.0 watermark at start of inter-bank gap should still match
+	pcpaint := append([]byte{}, raw...)
+	copy(pcpaint[8000:], "PCPaint V1.0")
+	be.True(t, magicnumber.DumpCGAGraphics(bytes.NewReader(pcpaint)))
+
+	// DOS .COM (0xE9 jump) with trailing 16KB CGA graphics dump
+	com := make([]byte, 256+16384)
+	com[0] = 0xE9
+	copy(com[256:], raw)
+	cr := bytes.NewReader(com)
+	be.True(t, magicnumber.DumpCGAGraphics(cr))
+	be.Equal(t, magicnumber.Find(cr), magicnumber.CGAGraphicsDump)
+
+	// DOS .COM mode-4 viewer (mov ax, 0004h; int 10h; mov si, 0300h; mov ax, B800h)
+	viewer := make([]byte, 0x0200+16384)
+	copy(viewer, []byte{0xB8, 0x04, 0x00, 0xCD, 0x10, 0x8C, 0xC8, 0x8E, 0xD8, 0xBE, 0x00, 0x03, 0xB8, 0x00, 0xB8})
+	copy(viewer[0x0200:], pcpaint)
+	vr := bytes.NewReader(viewer)
+	be.True(t, magicnumber.DumpCGAGraphics(vr))
+	be.Equal(t, magicnumber.Find(vr), magicnumber.CGAGraphicsDump)
+
+	// DOS .COM mode-4 viewer (mov al, 04h; int 10h; nop; mov si, 0300h; mov ax, B800h)
+	viewerAL := make([]byte, 0x0200+16384)
+	copy(viewerAL, []byte{0xB0, 0x04, 0xCD, 0x10, 0x90, 0x8C, 0xC8, 0x8E, 0xD8, 0xBE, 0x00, 0x03, 0xB8, 0x00, 0xB8})
+	copy(viewerAL[0x0200:], pcpaint)
+	val := bytes.NewReader(viewerAL)
+	be.True(t, magicnumber.DumpCGAGraphics(val))
+	be.Equal(t, magicnumber.Find(val), magicnumber.CGAGraphicsDump)
+
+	// DOS .COM (0xE9 jump) with `mov ax, B800h; mov es, ax; mov si, 0300h` and trailing padding
+	comMid := make([]byte, 0x0200+16384+512)
+	comMid[0] = 0xE9
+	copy(comMid[0x100:], []byte{0xB8, 0x00, 0xB8, 0x8E, 0xC0, 0xBE, 0x00, 0x03})
+	copy(comMid[0x0200:], raw)
+	cmr := bytes.NewReader(comMid)
+	be.True(t, magicnumber.DumpCGAGraphics(cmr))
+	be.Equal(t, magicnumber.Find(cmr), magicnumber.CGAGraphicsDump)
+
+	// DOS .COM mode-6 viewer (mov ah, 00h; mov al, 06h; int 10h; mov ax, B800h; mov es, ax; mov si, 0132h)
+	mode6 := make([]byte, 0x32+16384)
+	copy(mode6, []byte{0xB4, 0x00, 0xB0, 0x06, 0xCD, 0x10, 0x06, 0xB8, 0x00, 0xB8, 0x8E, 0xC0, 0xBE, 0x32, 0x01})
+	copy(mode6[0x32:], raw)
+	m6r := bytes.NewReader(mode6)
+	be.True(t, magicnumber.DumpCGAGraphics(m6r))
+	be.Equal(t, magicnumber.Find(m6r), magicnumber.CGAGraphicsDump)
+
+	// BSAVE-wrapped 16KB CGA graphics dump with trailing 0x1A DOS EOF byte
+	bsaveEOF := append(append([]byte{}, bsave...), 0x1A)
+	ber := bytes.NewReader(bsaveEOF)
+	be.True(t, magicnumber.DumpCGAGraphics(ber))
+	be.Equal(t, magicnumber.Find(ber), magicnumber.CGAGraphicsDump)
+
+	// DOS .COM with `mov ax, B800h; mov es, ax; xor di, di; mov si, 03AAh` (BSPLOAD layout)
+	bsp := make([]byte, 0x02AA+16384+256)
+	bsp[0] = 0xEB
+	copy(bsp[0xDE:], []byte{0xB8, 0x00, 0xB8, 0x8E, 0xC0, 0x33, 0xFF, 0xBE, 0xAA, 0x03})
+	copy(bsp[0x02AA:], raw)
+	bspr := bytes.NewReader(bsp)
+	be.True(t, magicnumber.DumpCGAGraphics(bspr))
+	be.Equal(t, magicnumber.Find(bspr), magicnumber.CGAGraphicsDump)
+
+	// DOS .COM with `mov ax, 017Fh; mov si, ax; mov ax, B800h; mov es, ax` (BSPTTL layout)
+	bspttl := make([]byte, 0x7F+16384+64)
+	copy(bspttl[0x66:], []byte{0xB8, 0x7F, 0x01, 0x8B, 0xF0, 0xB8, 0x00, 0xB8, 0x8E, 0xC0})
+	copy(bspttl[0x7F:], raw)
+	btr := bytes.NewReader(bspttl)
+	be.True(t, magicnumber.DumpCGAGraphics(btr))
+	be.Equal(t, magicnumber.Find(btr), magicnumber.CGAGraphicsDump)
 }

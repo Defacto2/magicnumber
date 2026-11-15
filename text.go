@@ -861,10 +861,19 @@ func bsavePayload(r io.ReaderAt, size int64) (int64, int64, bool) {
 	}
 	seg := uint16(hdr[1]) | uint16(hdr[2])<<8
 	payloadLen := int64(uint16(hdr[5]) | uint16(hdr[6])<<8)
-	if (seg != segCGA && seg != segMDA) || size != bsaveHeader+payloadLen {
+	if seg != segCGA && seg != segMDA {
 		return 0, 0, false
 	}
-	return bsaveHeader, payloadLen, true
+	if size == bsaveHeader+payloadLen {
+		return bsaveHeader, payloadLen, true
+	}
+	if size == bsaveHeader+payloadLen+1 {
+		var eof [1]byte
+		if n, err := r.ReadAt(eof[:], size-1); (err == nil || err == io.EOF) && n == 1 && (eof[0] == 0x00 || eof[0] == 0x1A) {
+			return bsaveHeader, payloadLen, true
+		}
+	}
+	return 0, 0, false
 }
 
 func cgaDumpOffset(r io.ReaderAt, size, screen, padded, ega43 int64) (int64, bool) {
@@ -891,29 +900,152 @@ func DumpCGAGraphics(r io.ReaderAt) bool {
 		cgaGraphicsSize = 16384
 		bankSize        = 8192
 		bankActive      = 8000
+		minBank1        = 7936
+		minGapZeros     = 160
+		comMaxSize      = 65536
+		jmpNear         = 0xE9
+		jmpShort        = 0xEB
 	)
 
 	size := Length(r)
 	offset := int64(0)
-	if size != cgaGraphicsSize {
-		off, payloadLen, ok := bsavePayload(r, size)
-		if !ok || payloadLen != cgaGraphicsSize {
+	isBSAVE := false
+	readLen := int64(cgaGraphicsSize)
+	switch {
+	case size == cgaGraphicsSize:
+		offset = 0
+	case size > cgaGraphicsSize && size <= comMaxSize:
+		if off, payloadLen, ok := bsavePayload(r, size); ok && payloadLen == cgaGraphicsSize {
+			offset = off
+			isBSAVE = true
+			break
+		}
+		if off, ok := cgaComB800Offset(r, size, bankSize+minBank1); ok {
+			offset = off
+			readLen = min(int64(cgaGraphicsSize), size-offset)
+			break
+		}
+		if off, ok := cgaComViewerOffset(r, size, bankSize+bankActive); ok {
+			offset = off
+			readLen = min(int64(cgaGraphicsSize), size-offset)
+			break
+		}
+		var first [1]byte
+		if n, err := r.ReadAt(first[:], 0); (err != nil && err != io.EOF) || n < 1 ||
+			(first[0] != jmpNear && first[0] != jmpShort) {
 			return false
 		}
-		offset = off
-	}
-
-	buf := make([]byte, cgaGraphicsSize)
-	if n, err := r.ReadAt(buf, offset); (err != nil && err != io.EOF) || n < cgaGraphicsSize {
+		offset = size - cgaGraphicsSize
+	default:
 		return false
 	}
 
-	// Both inter-bank (8000..8191) and trailing (16192..16383) 192-byte gaps must be zeroed,
-	// while both active banks must contain non-zero pixel data.
-	return hasNonZeroByte(buf[:bankActive]) &&
-		isAllZero(buf[bankActive:bankSize]) &&
-		hasNonZeroByte(buf[bankSize:bankSize+bankActive]) &&
-		isAllZero(buf[bankSize+bankActive:cgaGraphicsSize])
+	buf := make([]byte, readLen)
+	if n, err := r.ReadAt(buf, offset); (err != nil && err != io.EOF) || int64(n) < readLen {
+		return false
+	}
+
+	bank1End := min(readLen, int64(bankSize+bankActive))
+	if !hasNonZeroByte(buf[:bankActive]) || !hasNonZeroByte(buf[bankSize:bank1End]) {
+		return false
+	}
+	if isBSAVE {
+		return true
+	}
+
+	// Require at least one 192-byte gap (gap0 or gap1 when full 16KB is present) to be mostly 0x00/0x1A padding.
+	gap0OK := gapPadCount(buf[bankActive:bankSize]) >= minGapZeros
+	gap1OK := readLen == cgaGraphicsSize && gapPadCount(buf[bankSize+bankActive:cgaGraphicsSize]) >= minGapZeros
+	return gap0OK || gap1OK
+}
+
+func gapPadCount(b []byte) int {
+	n := 0
+	for _, v := range b {
+		if v == 0 || v == 0x1A {
+			n++
+		}
+	}
+	return n
+}
+
+// cgaComB800Offset finds `mov ax, 0xB800; mov es, ax` (B8 00 B8 8E C0) with a nearby
+// `mov si, imm16` (BE lo hi) in the first 4KB of a DOS .COM file and returns the embedded
+// payload offset (si - 0x0100).
+func cgaComB800Offset(r io.ReaderAt, size, payloadSize int64) (int64, bool) {
+	const (
+		comOrg  = 0x0100
+		scanMax = 4096
+	)
+	scanLen := min(size, int64(scanMax))
+	buf := make([]byte, scanLen)
+	n, err := r.ReadAt(buf, 0)
+	if (err != nil && err != io.EOF) || n < 8 {
+		return 0, false
+	}
+	for i := 0; i+4 < n; i++ {
+		if buf[i] != 0xB8 || buf[i+1] != 0x00 || buf[i+2] != 0xB8 ||
+			buf[i+3] != 0x8E || buf[i+4] != 0xC0 {
+			continue
+		}
+		lo := max(0, i-12)
+		hi := min(n-3, i+10)
+		for j := lo; j <= hi; j++ {
+			var si int64 = -1
+			switch {
+			case buf[j] == 0xBE: // mov si, imm16
+				si = int64(uint16(buf[j+1]) | uint16(buf[j+2])<<8)
+			case j+4 < n && buf[j] == 0xB8 && buf[j+3] == 0x8B && buf[j+4] == 0xF0: // mov ax, imm16; mov si, ax
+				si = int64(uint16(buf[j+1]) | uint16(buf[j+2])<<8)
+			}
+			if si >= comOrg && si-comOrg+payloadSize <= size {
+				return si - comOrg, true
+			}
+		}
+	}
+	return 0, false
+}
+
+// cgaComViewerOffset detects DOS .COM CGA mode-4 viewers (mov ax, 0004h; int 10h)
+// that copy embedded pixel data from `mov si, imm16` into B800h.
+func cgaComViewerOffset(r io.ReaderAt, size, minPayload int64) (int64, bool) {
+	const (
+		comOrg     = 0x0100
+		headerScan = 24
+	)
+	var hdr [headerScan]byte
+	n, err := r.ReadAt(hdr[:], 0)
+	if (err != nil && err != io.EOF) || n < 16 {
+		return 0, false
+	}
+	// Starts with: mov ax, 0004h; int 10h  OR  mov al, 04h; int 10h
+	start := 0
+	switch {
+	case hdr[0] == 0xB8 && hdr[1] == 0x04 && hdr[2] == 0x00 && hdr[3] == 0xCD && hdr[4] == 0x10:
+		start = 5
+	case hdr[0] == 0xB0 && hdr[1] == 0x04 && hdr[2] == 0xCD && hdr[3] == 0x10:
+		start = 4
+	default:
+		return 0, false
+	}
+	// Look for `mov si, imm16` (0xBE) and `mov ax, 0xB800` (0xB8 0x00 0xB8) in the stub.
+	var hasB800 bool
+	var siOff int64 = -1
+	for i := start; i+2 < n; i++ {
+		if hdr[i] == 0xB8 && hdr[i+1] == 0x00 && hdr[i+2] == 0xB8 {
+			hasB800 = true
+		}
+		if siOff < 0 && hdr[i] == 0xBE {
+			si := int64(uint16(hdr[i+1]) | uint16(hdr[i+2])<<8)
+			if si >= comOrg {
+				siOff = si - comOrg
+			}
+		}
+	}
+	if !hasB800 || siOff < 0 || siOff+minPayload > size {
+		return 0, false
+	}
+	return siOff, true
 }
 
 func hasNonZeroByte(b []byte) bool {
