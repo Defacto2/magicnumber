@@ -1,6 +1,7 @@
 package magicnumber_test
 
 import (
+	"bytes"
 	"os"
 	"testing"
 
@@ -95,6 +96,34 @@ func TestMediaJpeg(t *testing.T) {
 	r, err = os.Open(pathUncompress(t, jpegFile))
 	be.Err(t, err, nil)
 	defer r.Close()
+	be.True(t, magicnumber.Jpeg(r))
+	be.Equal(t, magicnumber.Find(r), magicnumber.JPEGFileInterchangeFormat)
+}
+
+func TestMediaJpegSAUCE(t *testing.T) {
+	t.Parallel()
+
+	header := []byte{0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 'J', 'F', 'I', 'F', 0x00, 0x01, 0xFF, 0xD9}
+
+	// SAUCE record with trailing null bytes (no COMNT, no 0x1A)
+	sauceNoComnt := make([]byte, 128)
+	copy(sauceNoComnt, "SAUCE00")
+	r := bytes.NewReader(append(append([]byte{}, header...), sauceNoComnt...))
+	be.True(t, magicnumber.Jpeg(r))
+	be.Equal(t, magicnumber.Find(r), magicnumber.JPEGFileInterchangeFormat)
+
+	// SAUCE record with 0x1A and 1 COMNT line (69 bytes), matching TD-FC2.JPG layout
+	sauceWithComnt := make([]byte, 128)
+	copy(sauceWithComnt, "SAUCE00")
+	sauceWithComnt[104] = 1
+	comnt := make([]byte, 5+64)
+	copy(comnt, "COMNT")
+	var payload []byte
+	payload = append(payload, header...)
+	payload = append(payload, 0x1A)
+	payload = append(payload, comnt...)
+	payload = append(payload, sauceWithComnt...)
+	r = bytes.NewReader(payload)
 	be.True(t, magicnumber.Jpeg(r))
 	be.Equal(t, magicnumber.Find(r), magicnumber.JPEGFileInterchangeFormat)
 }

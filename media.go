@@ -329,8 +329,13 @@ func checkJpegSuffix(r io.ReaderAt) bool {
 		return false
 	}
 
-	// read trailing 130 bytes to handle standard EOI, null padding, or SAUCE records
-	var tail [130]byte
+	// read trailing 131 bytes to handle standard EOI, null padding, or SAUCE records (with optional 0x1A)
+	const (
+		sauceLen = 128
+		eoiLen   = 2
+		eofByte  = 0x1A
+	)
+	var tail [sauceLen + 1 + eoiLen]byte
 	readSize := min(size, int64(len(tail)))
 
 	off := size - readSize
@@ -339,33 +344,72 @@ func checkJpegSuffix(r io.ReaderAt) bool {
 		return false
 	}
 
-	buf := tail[:n]
-	// strip trailing null bytes efficiently without reading full file
-	for len(buf) > 0 && buf[len(buf)-1] == 0x00 {
-		buf = buf[:len(buf)-1]
-	}
-
-	const sanity = 2
-	if len(buf) < sanity {
-		return false
-	}
-	// check for the standard EOI marker (0xFF, 0xD9)
-	if buf[len(buf)-2] == 0xFF && buf[len(buf)-1] == 0xD9 {
+	raw := tail[:n]
+	if hasJpegEOI(trimTrailingZero(raw)) {
 		return true
 	}
-	// check for SAUCE metadata trailer
-	// the 128-byte SAUCE record precedes EOF
-	if len(buf) >= 130 &&
-		buf[len(buf)-128] == 'S' &&
-		buf[len(buf)-127] == 'A' &&
-		buf[len(buf)-126] == 'U' &&
-		buf[len(buf)-125] == 'C' &&
-		buf[len(buf)-124] == 'E' {
-		// check for the standard EOI marker before the SAUCE record
-		return buf[len(buf)-130] == 0xFF && buf[len(buf)-129] == 0xD9
+
+	return hasSauceJpegEOI(r, size, raw)
+}
+
+func trimTrailingZero(b []byte) []byte {
+	for len(b) > 0 && b[len(b)-1] == 0x00 {
+		b = b[:len(b)-1]
+	}
+	return b
+}
+
+func hasJpegEOI(b []byte) bool {
+	return len(b) >= 2 && b[len(b)-2] == 0xFF && b[len(b)-1] == 0xD9
+}
+
+func hasSauceJpegEOI(r io.ReaderAt, size int64, raw []byte) bool {
+	const (
+		sauceLen    = 128
+		sauceOffset = 104
+		comntHeader = 5
+		comntLine   = 64
+		eofByte     = 0x1A
+	)
+	if len(raw) < sauceLen {
+		return false
+	}
+	sauce := raw[len(raw)-sauceLen:]
+	if string(sauce[:5]) != "SAUCE" {
+		return false
 	}
 
-	return false
+	comments := int64(sauce[sauceOffset])
+	if comments == 0 {
+		pre := raw[:len(raw)-sauceLen]
+		if len(pre) > 0 && pre[len(pre)-1] == eofByte {
+			pre = pre[:len(pre)-1]
+		}
+		return hasJpegEOI(pre)
+	}
+
+	// SAUCE comment block is "COMNT" + 64*comments bytes immediately before the SAUCE record.
+	comntStart := size - sauceLen - comntHeader - comntLine*comments
+	if comntStart < 2 {
+		return false
+	}
+	eoiStart := max(0, comntStart-3)
+	eoiMax := int(comntStart - eoiStart)
+
+	var head [3 + comntHeader]byte
+	want := eoiMax + comntHeader
+	n, err := r.ReadAt(head[:want], eoiStart)
+	if (err != nil && err != io.EOF) || n < want {
+		return false
+	}
+	if string(head[eoiMax:want]) != "COMNT" {
+		return false
+	}
+	eoi := head[:eoiMax]
+	if len(eoi) > 0 && eoi[len(eoi)-1] == eofByte {
+		eoi = eoi[:len(eoi)-1]
+	}
+	return hasJpegEOI(eoi)
 }
 
 // Jpeg2000 matches the JPEG 2000 image format.
