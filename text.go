@@ -845,27 +845,86 @@ func looksLikeASCIIText(buf []byte) bool {
 	return hasNewline
 }
 
-func cgaDumpOffset(r io.ReaderAt, size, screen, padded, ega43 int64) (int64, bool) {
+func bsavePayload(r io.ReaderAt, size int64) (int64, int64, bool) {
 	const (
 		bsaveHeader = 7
 		bsaveMagic  = 0xFD
 		segCGA      = 0xB800
 		segMDA      = 0xB000
 	)
-	if size >= bsaveHeader+screen {
-		var hdr [bsaveHeader]byte
-		if n, err := r.ReadAt(hdr[:], 0); (err == nil || err == io.EOF) && n == bsaveHeader && hdr[0] == bsaveMagic {
-			seg := uint16(hdr[1]) | uint16(hdr[2])<<8
-			payloadLen := int64(uint16(hdr[5]) | uint16(hdr[6])<<8)
-			if (seg == segCGA || seg == segMDA) && size == bsaveHeader+payloadLen &&
-				(payloadLen%screen == 0 || payloadLen%padded == 0 || payloadLen == ega43) {
-				return bsaveHeader, true
-			}
-		}
+	if size < bsaveHeader {
+		return 0, 0, false
+	}
+	var hdr [bsaveHeader]byte
+	if n, err := r.ReadAt(hdr[:], 0); (err != nil && err != io.EOF) || n < bsaveHeader || hdr[0] != bsaveMagic {
+		return 0, 0, false
+	}
+	seg := uint16(hdr[1]) | uint16(hdr[2])<<8
+	payloadLen := int64(uint16(hdr[5]) | uint16(hdr[6])<<8)
+	if (seg != segCGA && seg != segMDA) || size != bsaveHeader+payloadLen {
+		return 0, 0, false
+	}
+	return bsaveHeader, payloadLen, true
+}
+
+func cgaDumpOffset(r io.ReaderAt, size, screen, padded, ega43 int64) (int64, bool) {
+	if offset, payloadLen, ok := bsavePayload(r, size); ok &&
+		(payloadLen%screen == 0 || payloadLen%padded == 0 || payloadLen == ega43) {
+		return offset, true
 	}
 
 	if size%screen == 0 || size%padded == 0 || size == ega43 {
 		return 0, true
 	}
 	return 0, false
+}
+
+// DumpCGAGraphics uses heuristics to discover 16KB IBM CGA interleaved graphics VRAM dumps
+// (320x200 4-color or 640x200 2-color), consisting of two 8KB banks each with 8000 active bytes
+// followed by 192 unused zero bytes.
+func DumpCGAGraphics(r io.ReaderAt) bool {
+	if r == nil {
+		return false
+	}
+
+	const (
+		cgaGraphicsSize = 16384
+		bankSize        = 8192
+		bankActive      = 8000
+	)
+
+	size := Length(r)
+	offset := int64(0)
+	if size != cgaGraphicsSize {
+		off, payloadLen, ok := bsavePayload(r, size)
+		if !ok || payloadLen != cgaGraphicsSize {
+			return false
+		}
+		offset = off
+	}
+
+	buf := make([]byte, cgaGraphicsSize)
+	if n, err := r.ReadAt(buf, offset); (err != nil && err != io.EOF) || n < cgaGraphicsSize {
+		return false
+	}
+
+	// Both inter-bank (8000..8191) and trailing (16192..16383) 192-byte gaps must be zeroed,
+	// while both active banks must contain non-zero pixel data.
+	return hasNonZeroByte(buf[:bankActive]) &&
+		isAllZero(buf[bankActive:bankSize]) &&
+		hasNonZeroByte(buf[bankSize:bankSize+bankActive]) &&
+		isAllZero(buf[bankSize+bankActive:cgaGraphicsSize])
+}
+
+func hasNonZeroByte(b []byte) bool {
+	for _, v := range b {
+		if v != 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func isAllZero(b []byte) bool {
+	return !hasNonZeroByte(b)
 }

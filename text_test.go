@@ -360,3 +360,42 @@ func TestDumpCGA(t *testing.T) {
 	}
 	be.True(t, magicnumber.DumpCGA(bytes.NewReader(ega)))
 }
+
+func TestDumpCGAGraphics(t *testing.T) {
+	t.Parallel()
+
+	f, err := os.Open(pathFile(t, "cga/OPEN"))
+	be.Err(t, err, nil)
+	defer f.Close()
+	be.True(t, magicnumber.DumpCGAGraphics(f))
+	got := magicnumber.Find(f)
+	be.Equal(t, got, magicnumber.CGAGraphicsDump)
+	be.Equal(t, got.Title(), "IBM CGA graphics RAM dump")
+
+	raw := make([]byte, 16384)
+	raw[0] = 0x55
+	raw[8192] = 0xAA
+	r := bytes.NewReader(raw)
+	be.True(t, magicnumber.DumpCGAGraphics(r))
+	got = magicnumber.Find(r)
+	be.Equal(t, got, magicnumber.CGAGraphicsDump)
+	be.Equal(t, got.Title(), "IBM CGA graphics RAM dump")
+
+	// BSAVE-wrapped 16KB CGA graphics dump
+	bsave := make([]byte, 7+16384)
+	bsave[0] = 0xFD
+	bsave[1], bsave[2] = 0x00, 0xB8
+	bsave[5], bsave[6] = 0x00, 0x40 // 16384 little-endian
+	copy(bsave[7:], raw)
+	br := bytes.NewReader(bsave)
+	be.True(t, magicnumber.DumpCGAGraphics(br))
+	be.Equal(t, magicnumber.Find(br), magicnumber.CGAGraphicsDump)
+
+	// All-zero 16KB file must not match
+	be.True(t, !magicnumber.DumpCGAGraphics(bytes.NewReader(make([]byte, 16384))))
+
+	// Non-zero byte in inter-bank gap must not match
+	badGap := append([]byte{}, raw...)
+	badGap[8000] = 0x01
+	be.True(t, !magicnumber.DumpCGAGraphics(bytes.NewReader(badGap)))
+}

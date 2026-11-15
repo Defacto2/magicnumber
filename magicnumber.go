@@ -112,6 +112,7 @@ const (
 	NoGatePAK
 	LibraryUtility
 	CGAVideoDump
+	CGAGraphicsDump
 	XBinaryText
 )
 
@@ -215,6 +216,7 @@ func (sign Signature) String() string { //nolint:funlen
 		"PAK archive",
 		"Library archive",
 		"CGA screen dump",
+		"CGA graphics dump",
 		"XBIN binary text",
 	}[sign]
 }
@@ -305,6 +307,7 @@ func (sign Signature) Title() string { //nolint:funlen
 		"PAK archive by NoGate",
 		"Library Utility archive",
 		"IBM CGA video RAM dump",
+		"IBM CGA graphics RAM dump",
 		"XBIN extended binary text",
 	}[sign]
 }
@@ -388,6 +391,7 @@ var extensions = Extension{
 	NoGatePAK:                         []string{".pak"},
 	LibraryUtility:                    []string{".lbr"},
 	CGAVideoDump:                      []string{".bin", ".dat", ",.scr", ".tpg"},
+	CGAGraphicsDump:                   []string{".cga", ".bin", ".dat", ".scr"},
 	XBinaryText:                       []string{".xb", ".bin"},
 }
 
@@ -476,6 +480,7 @@ var finds = Finder{
 	NoGatePAK:                         Pak,
 	LibraryUtility:                    LU,
 	CGAVideoDump:                      DumpCGA,
+	CGAGraphicsDump:                   DumpCGAGraphics,
 	XBinaryText:                       XBin,
 }
 
@@ -553,6 +558,7 @@ func FindWithLogger(sl *slog.Logger, r io.ReaderAt) Signature {
 		ElectronicArtsIFF,
 		ARChiveSEA,
 		CGAVideoDump,
+		CGAGraphicsDump,
 	}
 	for sign, matcher := range finds {
 		if slices.Contains(skip[:], sign) {
@@ -577,6 +583,9 @@ func FindWithLogger(sl *slog.Logger, r io.ReaderAt) Signature {
 
 	case AnsiWithLogger(sl, r):
 		sign = ANSIEscapeText
+
+	case DumpCGAGraphics(r): // checked before DumpCGA as 16384 is a multiple of 4096
+		sign = CGAGraphicsDump
 
 	case DumpCGA(r): // causes false positives with CDISO etc.
 		sign = CGAVideoDump
