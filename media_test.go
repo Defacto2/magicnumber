@@ -118,7 +118,7 @@ func TestMediaJpegSAUCE(t *testing.T) {
 	sauceWithComnt[104] = 1
 	comnt := make([]byte, 5+64)
 	copy(comnt, "COMNT")
-	var payload []byte
+	payload := make([]byte, 0, len(header)+1+len(comnt)+len(sauceWithComnt))
 	payload = append(payload, header...)
 	payload = append(payload, 0x1A)
 	payload = append(payload, comnt...)

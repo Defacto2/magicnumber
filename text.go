@@ -798,24 +798,25 @@ func DumpCGA(r io.ReaderAt) bool {
 		return false
 	}
 
-	offset, ok := cgaDumpOffset(r, size, screen, padded, ega43)
+	offset, ok := cgaOffset(r, size, screen, padded, ega43)
 	if !ok {
 		return false
 	}
 
 	buf := make([]byte, screen)
-	if _, err := r.ReadAt(buf, offset); err != nil && err != io.EOF {
+	_, err := r.ReadAt(buf, offset)
+	if err != nil && err != io.EOF {
 		return false
 	}
 
 	blinkFree := true
 	blackOnly := true
-	hasNonZeroAttr := false
+	allZeroAttr := true
 
 	for i := 1; i < screen; i += attrib {
 		attr := buf[i]
 		if attr != 0 {
-			hasNonZeroAttr = true
+			allZeroAttr = false
 		}
 		if (attr & blink) != 0 {
 			blinkFree = false
@@ -825,13 +826,13 @@ func DumpCGA(r io.ReaderAt) bool {
 		}
 	}
 
-	if !hasNonZeroAttr || looksLikeASCIIText(buf) {
+	if allZeroAttr || asciiLike(buf) {
 		return false
 	}
 	return blinkFree || blackOnly
 }
 
-func looksLikeASCIIText(buf []byte) bool {
+func asciiLike(buf []byte) bool {
 	hasNewline := false
 	for _, b := range buf {
 		switch {
@@ -845,40 +846,45 @@ func looksLikeASCIIText(buf []byte) bool {
 	return hasNewline
 }
 
-func bsavePayload(r io.ReaderAt, size int64) (int64, int64, bool) {
+func bsave(r io.ReaderAt, size int64) (int64, int64, bool) {
 	const (
-		bsaveHeader = 7
-		bsaveMagic  = 0xFD
-		segCGA      = 0xB800
-		segMDA      = 0xB000
+		header     = 7
+		bsaveMagic = 0xFD
+		segCGA     = 0xB800
+		segMDA     = 0xB000
+		shift      = 8
 	)
-	if size < bsaveHeader {
+	if size < header {
 		return 0, 0, false
 	}
-	var hdr [bsaveHeader]byte
-	if n, err := r.ReadAt(hdr[:], 0); (err != nil && err != io.EOF) || n < bsaveHeader || hdr[0] != bsaveMagic {
+
+	var hdr [header]byte
+	n, err := r.ReadAt(hdr[:], 0)
+	if (err != nil && err != io.EOF) || n < header || hdr[0] != bsaveMagic {
 		return 0, 0, false
 	}
-	seg := uint16(hdr[1]) | uint16(hdr[2])<<8
-	payloadLen := int64(uint16(hdr[5]) | uint16(hdr[6])<<8)
+
+	seg := uint16(hdr[1]) | uint16(hdr[2])<<shift
+	payload := int64(uint16(hdr[5]) | uint16(hdr[6])<<shift)
 	if seg != segCGA && seg != segMDA {
 		return 0, 0, false
 	}
-	if size == bsaveHeader+payloadLen {
-		return bsaveHeader, payloadLen, true
+	if size == header+payload {
+		return header, payload, true
 	}
-	if size == bsaveHeader+payloadLen+1 {
+	if size == header+payload+1 {
 		var eof [1]byte
-		if n, err := r.ReadAt(eof[:], size-1); (err == nil || err == io.EOF) && n == 1 && (eof[0] == 0x00 || eof[0] == 0x1A) {
-			return bsaveHeader, payloadLen, true
+		n, err := r.ReadAt(eof[:], size-1)
+		if (err == nil || err == io.EOF) && n == 1 && (eof[0] == 0x00 || eof[0] == 0x1A) {
+			return header, payload, true
 		}
 	}
 	return 0, 0, false
 }
 
-func cgaDumpOffset(r io.ReaderAt, size, screen, padded, ega43 int64) (int64, bool) {
-	if offset, payloadLen, ok := bsavePayload(r, size); ok &&
-		(payloadLen%screen == 0 || payloadLen%padded == 0 || payloadLen == ega43) {
+func cgaOffset(r io.ReaderAt, size, screen, padded, ega43 int64) (int64, bool) {
+	offset, payload, ok := bsave(r, size)
+	if ok && (payload%screen == 0 || payload%padded == 0 || payload == ega43) {
 		return offset, true
 	}
 
@@ -888,78 +894,93 @@ func cgaDumpOffset(r io.ReaderAt, size, screen, padded, ega43 int64) (int64, boo
 	return 0, false
 }
 
-// DumpCGAGraphics uses heuristics to discover 16KB IBM CGA interleaved graphics VRAM dumps
-// (320x200 4-color or 640x200 2-color), consisting of two 8KB banks each with 8000 active bytes
-// followed by 192 unused zero bytes.
+// DumpCGAGraphics uses heuristics to discover 16KB, IBM CGA VRAM dumps.
+//   - 320x200 4-color.
+//   - 640x200 2-color.
 func DumpCGAGraphics(r io.ReaderAt) bool {
 	if r == nil {
 		return false
 	}
 
 	const (
-		cgaGraphicsSize = 16384
-		bankSize        = 8192
-		bankActive      = 8000
-		minBank1        = 7936
-		minGapZeros     = 160
-		comMaxSize      = 65536
-		jmpNear         = 0xE9
-		jmpShort        = 0xEB
+		size        = 16384
+		bankSize    = 8192
+		bankActive  = 8000
+		minGapZeros = 160
 	)
 
-	size := Length(r)
-	offset := int64(0)
-	isBSAVE := false
-	readLen := int64(cgaGraphicsSize)
-	switch {
-	case size == cgaGraphicsSize:
-		offset = 0
-	case size > cgaGraphicsSize && size <= comMaxSize:
-		if off, payloadLen, ok := bsavePayload(r, size); ok && payloadLen == cgaGraphicsSize {
-			offset = off
-			isBSAVE = true
-			break
-		}
-		if off, ok := cgaComB800Offset(r, size, bankSize+minBank1); ok {
-			offset = off
-			readLen = min(int64(cgaGraphicsSize), size-offset)
-			break
-		}
-		if off, ok := cgaComViewerOffset(r, size, bankSize+bankActive); ok {
-			offset = off
-			readLen = min(int64(cgaGraphicsSize), size-offset)
-			break
-		}
-		var first [1]byte
-		if n, err := r.ReadAt(first[:], 0); (err != nil && err != io.EOF) || n < 1 ||
-			(first[0] != jmpNear && first[0] != jmpShort) {
-			return false
-		}
-		offset = size - cgaGraphicsSize
-	default:
+	offset, read, bsave, ok := cgaSpan(r)
+	if !ok {
 		return false
 	}
 
-	buf := make([]byte, readLen)
-	if n, err := r.ReadAt(buf, offset); (err != nil && err != io.EOF) || int64(n) < readLen {
+	buf := make([]byte, read)
+	n, err := r.ReadAt(buf, offset)
+	if (err != nil && err != io.EOF) || int64(n) < read {
 		return false
 	}
 
-	bank1End := min(readLen, int64(bankSize+bankActive))
-	if !hasNonZeroByte(buf[:bankActive]) || !hasNonZeroByte(buf[bankSize:bank1End]) {
+	bank1End := min(read, int64(bankSize+bankActive))
+	if allZeroBytes(buf[:bankActive]) || allZeroBytes(buf[bankSize:bank1End]) {
 		return false
 	}
-	if isBSAVE {
+	if bsave {
 		return true
 	}
 
-	// Require at least one 192-byte gap (gap0 or gap1 when full 16KB is present) to be mostly 0x00/0x1A padding.
-	gap0OK := gapPadCount(buf[bankActive:bankSize]) >= minGapZeros
-	gap1OK := readLen == cgaGraphicsSize && gapPadCount(buf[bankSize+bankActive:cgaGraphicsSize]) >= minGapZeros
+	// Require at least one 192-byte gap.
+	// gap0 or gap1 when full 16KB is present to be mostly 0x00 or 0x1A padding.
+	gap0OK := gapCount(buf[bankActive:bankSize]) >= minGapZeros
+	gap1OK := read == size && gapCount(buf[bankSize+bankActive:size]) >= minGapZeros
 	return gap0OK || gap1OK
 }
 
-func gapPadCount(b []byte) int {
+// cgaSpan returns the CGA graphics payload offset, byte length to read,
+// whether the source is a BSAVE file, and whether a valid span was found.
+func cgaSpan(r io.ReaderAt) (int64, int64, bool, bool) {
+	const (
+		size       = 16384
+		bankSize   = 8192
+		bankActive = 8000
+		minBank1   = 7936
+		comMaxSize = 65536
+		jmpNear    = 0xE9
+		jmpShort   = 0xEB
+	)
+
+	l := Length(r)
+	if l == size {
+		return 0, size, false, true
+	}
+	if l < size || l > comMaxSize {
+		return 0, 0, false, false
+	}
+
+	off, payload, matched := bsave(r, l)
+	if matched && payload == size {
+		return off, size, true, true
+	}
+
+	off, matched = cgaB800(r, l, bankSize+minBank1)
+	if matched {
+		return off, min(int64(size), l-off), false, true
+	}
+
+	off, matched = cgaView(r, l, bankSize+bankActive)
+	if matched {
+		return off, min(int64(size), l-off), false, true
+	}
+
+	var first [1]byte
+	n, err := r.ReadAt(first[:], 0)
+	if (err != nil && err != io.EOF) || n < 1 ||
+		(first[0] != jmpNear && first[0] != jmpShort) {
+		return 0, 0, false, false
+	}
+	return l - size, size, false, true
+}
+
+func gapCount(b []byte) int {
 	n := 0
 	for _, v := range b {
 		if v == 0 || v == 0x1A {
@@ -969,36 +990,53 @@ func gapPadCount(b []byte) int {
 	return n
 }
 
-// cgaComB800Offset finds `mov ax, 0xB800; mov es, ax` (B8 00 B8 8E C0) with a nearby
+// cgaB800 finds `mov ax, 0xB800; mov es, ax` (B8 00 B8 8E C0) with a nearby
 // `mov si, imm16` (BE lo hi) in the first 4KB of a DOS .COM file and returns the embedded
 // payload offset (si - 0x0100).
-func cgaComB800Offset(r io.ReaderAt, size, payloadSize int64) (int64, bool) {
+func cgaB800(r io.ReaderAt, l, payload int64) (int64, bool) {
 	const (
-		comOrg  = 0x0100
-		scanMax = 4096
+		comOrg       = 0x0100
+		scanMax      = 4096
+		windowBack   = 12
+		windowAhead  = 10
+		minMovSiLen  = 3
+		opMovSiImm16 = 0xBE
+		opMovAxImm16 = 0xB8
+		opMovRegReg  = 0x8B
+		modRmSiAx    = 0xF0
 	)
-	scanLen := min(size, int64(scanMax))
-	buf := make([]byte, scanLen)
+
+	size := min(l, int64(scanMax))
+	buf := make([]byte, size)
 	n, err := r.ReadAt(buf, 0)
 	if (err != nil && err != io.EOF) || n < 8 {
 		return 0, false
 	}
+
+	// matches `mov ax, 0xB800; mov es, ax` (point ES at CGA video memory)
+	pointsToCGA := func(i int) bool {
+		return buf[i] == 0xB8 && buf[i+1] == 0x00 && buf[i+2] == 0xB8 &&
+			buf[i+3] == 0x8E && buf[i+4] == 0xC0
+	}
+
+	// reads the 16-bit source address loaded into SI (`mov si, imm16` or `mov ax, imm16; mov si, ax`)
+	readSourceAddr := func(j int) (int64, bool) {
+		isDirect := buf[j] == opMovSiImm16
+		isViaAX := j+4 < n && buf[j] == opMovAxImm16 && buf[j+3] == opMovRegReg && buf[j+4] == modRmSiAx
+		if !isDirect && !isViaAX {
+			return 0, false
+		}
+		return int64(uint16(buf[j+1]) | uint16(buf[j+2])<<8), true
+	}
+
 	for i := 0; i+4 < n; i++ {
-		if buf[i] != 0xB8 || buf[i+1] != 0x00 || buf[i+2] != 0xB8 ||
-			buf[i+3] != 0x8E || buf[i+4] != 0xC0 {
+		if !pointsToCGA(i) {
 			continue
 		}
-		lo := max(0, i-12)
-		hi := min(n-3, i+10)
+		lo := max(0, i-windowBack)
+		hi := min(n-minMovSiLen, i+windowAhead)
 		for j := lo; j <= hi; j++ {
-			var si int64 = -1
-			switch {
-			case buf[j] == 0xBE: // mov si, imm16
-				si = int64(uint16(buf[j+1]) | uint16(buf[j+2])<<8)
-			case j+4 < n && buf[j] == 0xB8 && buf[j+3] == 0x8B && buf[j+4] == 0xF0: // mov ax, imm16; mov si, ax
-				si = int64(uint16(buf[j+1]) | uint16(buf[j+2])<<8)
-			}
-			if si >= comOrg && si-comOrg+payloadSize <= size {
+			if si, ok := readSourceAddr(j); ok && si >= comOrg && si-comOrg+payload <= l {
 				return si - comOrg, true
 			}
 		}
@@ -1006,108 +1044,133 @@ func cgaComB800Offset(r io.ReaderAt, size, payloadSize int64) (int64, bool) {
 	return 0, false
 }
 
-// cgaComViewerOffset detects DOS .COM CGA mode-4 viewers (mov ax, 0004h; int 10h)
+// cgaView detects DOS .COM CGA mode-4 viewers (mov ax, 0004h; int 10h)
 // that copy embedded pixel data from `mov si, imm16` into B800h.
-func cgaComViewerOffset(r io.ReaderAt, size, minPayload int64) (int64, bool) {
+func cgaView(r io.ReaderAt, l, payload int64) (int64, bool) {
 	const (
-		comOrg     = 0x0100
-		headerScan = 24
+		comOrg        = 0x0100
+		headerScan    = 24
+		opMovSiImm16  = 0xBE
+		movAxInt10Len = 5
+		movAlInt10Len = 4
 	)
 	var hdr [headerScan]byte
 	n, err := r.ReadAt(hdr[:], 0)
 	if (err != nil && err != io.EOF) || n < 16 {
 		return 0, false
 	}
-	// Starts with: mov ax, 0004h; int 10h  OR  mov al, 04h; int 10h
-	start := 0
-	switch {
-	case hdr[0] == 0xB8 && hdr[1] == 0x04 && hdr[2] == 0x00 && hdr[3] == 0xCD && hdr[4] == 0x10:
-		start = 5
-	case hdr[0] == 0xB0 && hdr[1] == 0x04 && hdr[2] == 0xCD && hdr[3] == 0x10:
-		start = 4
-	default:
+
+	// setsCGAMode4 returns the byte length of a leading `int 10h` CGA 320x200 mode-4 setup.
+	setsCGAMode4 := func() int {
+		switch {
+		case hdr[0] == 0xB8 && hdr[1] == 0x04 && hdr[2] == 0x00 && hdr[3] == 0xCD && hdr[4] == 0x10:
+			return movAxInt10Len
+		case hdr[0] == 0xB0 && hdr[1] == 0x04 && hdr[2] == 0xCD && hdr[3] == 0x10:
+			return movAlInt10Len
+		default:
+			return 0
+		}
+	}
+	// loadsCGASegment matches `mov ax, 0xB800` (loading the CGA video memory segment).
+	loadsCGASegment := func(i int) bool {
+		return hdr[i] == 0xB8 && hdr[i+1] == 0x00 && hdr[i+2] == 0xB8
+	}
+	// loadsSourceAddr matches `mov si, imm16` and returns the .COM payload offset.
+	loadsSourceAddr := func(i int) (int64, bool) {
+		if hdr[i] != opMovSiImm16 {
+			return 0, false
+		}
+		si := int64(uint16(hdr[i+1]) | uint16(hdr[i+2])<<8)
+		return si - comOrg, si >= comOrg
+	}
+
+	start := setsCGAMode4()
+	if start == 0 {
 		return 0, false
 	}
-	// Look for `mov si, imm16` (0xBE) and `mov ax, 0xB800` (0xB8 0x00 0xB8) in the stub.
+
 	var hasB800 bool
 	var siOff int64 = -1
 	for i := start; i+2 < n; i++ {
-		if hdr[i] == 0xB8 && hdr[i+1] == 0x00 && hdr[i+2] == 0xB8 {
+		if loadsCGASegment(i) {
 			hasB800 = true
 		}
-		if siOff < 0 && hdr[i] == 0xBE {
-			si := int64(uint16(hdr[i+1]) | uint16(hdr[i+2])<<8)
-			if si >= comOrg {
-				siOff = si - comOrg
+		if siOff < 0 {
+			if off, ok := loadsSourceAddr(i); ok {
+				siOff = off
 			}
 		}
 	}
-	if !hasB800 || siOff < 0 || siOff+minPayload > size {
+	if !hasB800 || siOff < 0 || siOff+payload > l {
 		return 0, false
 	}
 	return siOff, true
 }
 
-func hasNonZeroByte(b []byte) bool {
+func allZeroBytes(b []byte) bool {
 	for _, v := range b {
 		if v != 0 {
-			return true
+			return false
 		}
 	}
-	return false
+	return true
 }
 
-func isAllZero(b []byte) bool {
-	return !hasNonZeroByte(b)
-}
-
-// DumpSPICGA detects Software Pirates, Inc. DOS .COM loaders containing an embedded "SPI"
-// RLE-compressed CGA graphics stream ("SPI" + uint16 pairCount + pairCount * [val, repeatMinus1]).
+// DumpSPICGA detects Software Pirates, Inc. DOS .COM loaders containing an embedded
+// "SPI" RLE-compressed CGA graphics stream.
+//
+//	Example: "SPI" + uint16 pairCount + pairCount * [val, repeatMinus1]).
 func DumpSPICGA(r io.ReaderAt) bool {
 	if r == nil {
 		return false
 	}
 
 	const (
-		comMaxSize    = 65536
-		minDecodedLen = 16000
-		maxDecodedLen = 16384
-		headerLen     = 5 // "SPI" + uint16 pairCount
+		spi     = "SPI"
+		size    = 65536
+		minSize = 16000
+		maxSize = 16384
+		header  = 5 // "SPI" + uint16 pairCount
 	)
 
-	size := Length(r)
-	if size < headerLen || size > comMaxSize {
+	l := Length(r)
+	if l < header || l > size {
 		return false
 	}
 
-	buf := make([]byte, size)
-	if n, err := r.ReadAt(buf, 0); (err != nil && err != io.EOF) || int64(n) < size {
+	buf := make([]byte, l)
+	if n, err := r.ReadAt(buf, 0); (err != nil && err != io.EOF) || int64(n) < l {
 		return false
 	}
 
 	// Must start with a DOS .COM jump (0xE9/0xEB) or directly with "SPI".
-	if buf[0] != 0xE9 && buf[0] != 0xEB && !bytes.HasPrefix(buf, []byte("SPI")) {
+	if buf[0] != 0xE9 && buf[0] != 0xEB && !bytes.HasPrefix(buf, []byte(spi)) {
 		return false
 	}
 
-	searchFrom := 0
-	for {
-		rel := bytes.Index(buf[searchFrom:], []byte("SPI"))
+	validSPI := func(tail []byte) bool {
+		if len(tail) < header {
+			return false
+		}
+		pairCount := int(uint16(tail[3]) | uint16(tail[4])<<8)
+		if header+2*pairCount != len(tail) {
+			return false
+		}
+		decodedLen := 0
+		for pos := header; pos < len(tail); pos += 2 {
+			decodedLen += int(tail[pos+1]) + 1
+		}
+		return decodedLen >= minSize && decodedLen <= maxSize
+	}
+
+	for searchFrom := 0; ; {
+		rel := bytes.Index(buf[searchFrom:], []byte(spi))
 		if rel < 0 {
 			return false
 		}
 		idx := searchFrom + rel
-		if idx+headerLen <= len(buf) {
-			pairCount := int(uint16(buf[idx+3]) | uint16(buf[idx+4])<<8)
-			if idx+headerLen+2*pairCount == len(buf) {
-				decodedLen := 0
-				for pos := idx + headerLen; pos < len(buf); pos += 2 {
-					decodedLen += int(buf[pos+1]) + 1
-				}
-				if decodedLen >= minDecodedLen && decodedLen <= maxDecodedLen {
-					return true
-				}
-			}
+		if validSPI(buf[idx:]) {
+			return true
 		}
 		searchFrom = idx + 1
 	}

@@ -1,4 +1,4 @@
-//nolint:exhaustruct_v5
+//nolint:exhaustruct_v5,gosec
 package magicnumber_test
 
 import (
@@ -484,7 +484,7 @@ func TestDumpSPICGA(t *testing.T) {
 	copy(payload[128:], "SPI")
 	payload[128+3] = pairs
 	payload[128+4] = 0
-	for i := 0; i < pairs; i++ {
+	for i := range pairs {
 		payload[128+5+2*i] = 0x55
 		payload[128+5+2*i+1] = 255
 	}
@@ -492,7 +492,7 @@ func TestDumpSPICGA(t *testing.T) {
 	be.True(t, magicnumber.DumpSPICGA(r))
 	got := magicnumber.Find(r)
 	be.Equal(t, got, magicnumber.SPICGADump)
-	be.Equal(t, got.Title(), "Software Pirates CGA RLE dump")
+	be.Equal(t, got.Title(), "Software Pirates Inc CGA RLE dump")
 
 	// Trailing extra byte breaks exact EOF match
 	bad := append(append([]byte{}, payload...), 0x00)

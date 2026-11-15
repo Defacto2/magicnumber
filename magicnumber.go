@@ -124,6 +124,7 @@ const LastSignature = XBinaryText
 
 const (
 	mpeg4video = "MPEG-4 video"
+	bbin       = ".bin"
 	eexe       = ".exe"
 	iiff       = ".iff"
 	rrar       = ".rar"
@@ -393,10 +394,10 @@ var extensions = Extension{
 	PlanarBitMap:                      []string{iiff, ".lbm"},
 	NoGatePAK:                         []string{".pak"},
 	LibraryUtility:                    []string{".lbr"},
-	CGAVideoDump:                      []string{".bin", ".dat", ",.scr", ".tpg"},
-	CGAGraphicsDump:                   []string{".cga", ".bin", ".dat", ".scr"},
+	CGAVideoDump:                      []string{bbin, ".dat", ",.scr", ".tpg"},
+	CGAGraphicsDump:                   []string{".cga", bbin, ".dat", ".scr"},
 	SPICGADump:                        []string{".com", ".spi"},
-	XBinaryText:                       []string{".xb", ".bin"},
+	XBinaryText:                       []string{".xb", bbin},
 }
 
 // Exts returns a map of file type signatures to common file extensions.
@@ -576,42 +577,34 @@ func FindWithLogger(sl *slog.Logger, r io.ReaderAt) Signature {
 		}
 	}
 
-	sign := Unknown
-	switch {
-	// do manual, ordered checks here to avoid false positives
-	// INFO: don't forget to update, skip :=[]Signature{}
-
-	case Iff(r): // conflicts with other IFF containers
-		sign = ElectronicArtsIFF
-
-	case ArcSEA(r): // conflicts with NoGatePAK
-		sign = ARChiveSEA
-
-	case AnsiWithLogger(sl, r):
-		sign = ANSIEscapeText
-
-	case DumpCGAGraphics(r): // checked before DumpCGA as 16384 is a multiple of 4096
-		sign = CGAGraphicsDump
-
-	case DumpSPICGA(r):
-		sign = SPICGADump
-
-	case DumpCGA(r): // causes false positives with CDISO etc.
-		sign = CGAVideoDump
-
-	case CodePageWithLogger(sl, r):
-		sign = PlainText
-
-	case Txt(r):
-		sign = PlainText
-
-	case XBin(r):
-		sign = XBinaryText
-
-	default:
-	}
+	sign := findOrdered(sl, r)
 	matched(sl, sign)
 	return sign
+}
+
+func findOrdered(sl *slog.Logger, r io.ReaderAt) Signature {
+	// Do manual, ordered checks here to avoid false positives.
+	// INFO: don't forget to update skip in FindWithLogger.
+	ordered := [...]struct {
+		sign  Signature
+		match func() bool
+	}{
+		{ElectronicArtsIFF, func() bool { return Iff(r) }},             // conflicts with other IFF containers
+		{ARChiveSEA, func() bool { return ArcSEA(r) }},                 // conflicts with NoGatePAK
+		{ANSIEscapeText, func() bool { return AnsiWithLogger(sl, r) }}, //
+		{CGAGraphicsDump, func() bool { return DumpCGAGraphics(r) }},   // before DumpCGA (16384 is a multiple of 4096)
+		{SPICGADump, func() bool { return DumpSPICGA(r) }},             //
+		{CGAVideoDump, func() bool { return DumpCGA(r) }},              // causes false positives with CDISO etc.
+		{PlainText, func() bool { return CodePageWithLogger(sl, r) }},  //
+		{PlainText, func() bool { return Txt(r) }},                     //
+		{XBinaryText, func() bool { return XBin(r) }},                  //
+	}
+	for _, entry := range ordered {
+		if entry.match() {
+			return entry.sign
+		}
+	}
+	return Unknown
 }
 
 // Empty returns true if the reader is empty.

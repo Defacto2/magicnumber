@@ -1,4 +1,3 @@
-//nolint:cyclop
 package magicnumber
 
 // Package file media.go contains the functions that parse bytes as common image, digital audio and video formats.
@@ -390,10 +389,12 @@ func hasSauceJpegEOI(r io.ReaderAt, size int64, raw []byte) bool {
 
 	// SAUCE comment block is "COMNT" + 64*comments bytes immediately before the SAUCE record.
 	comntStart := size - sauceLen - comntHeader - comntLine*comments
-	if comntStart < 2 {
+	const minimum = 2
+	if comntStart < minimum {
 		return false
 	}
-	eoiStart := max(0, comntStart-3)
+	const bytMax = 3
+	eoiStart := max(0, comntStart-bytMax)
 	eoiMax := int(comntStart - eoiStart)
 
 	var head [3 + comntHeader]byte
