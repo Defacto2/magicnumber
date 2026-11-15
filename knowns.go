@@ -255,6 +255,7 @@ var bbsPacks = []Signature{
 	ZooArchive,
 	ArchiveRobertJung,
 	NoGatePAK,
+	LibraryUtility,
 }
 
 var discImages = sync.OnceValue(func() []sigMatcher {
@@ -348,7 +349,7 @@ var texts = sync.OnceValue(func() []sigMatcher {
 	return matchers
 })
 
-var txts = []Signature{ //nolint:gochecknoglobals
+var txts = []Signature{
 	UTF8Text,
 	UTF16Text,
 	UTF32Text,

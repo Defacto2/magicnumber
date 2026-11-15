@@ -124,6 +124,7 @@ const (
 	mpeg4video = "MPEG-4 video"
 	eexe       = ".exe"
 	iiff       = ".iff"
+	rrar       = ".rar"
 	ttxt       = ".txt"
 	zzip       = ".zip"
 )
@@ -352,9 +353,9 @@ var extensions = Extension{
 	PKLITE:                            []string{zzip},
 	PKSFX:                             []string{zzip},
 	TapeARchive:                       []string{".tar"},
-	RoshalARchive93:                   []string{".rar"},
-	RoshalARchive:                     []string{".rar"},
-	RoshalARchivev5:                   []string{".rar"},
+	RoshalARchive93:                   []string{rrar},
+	RoshalARchive:                     []string{rrar},
+	RoshalARchivev5:                   []string{rrar},
 	GzipCompressArchive:               []string{".gz"},
 	Bzip2CompressArchive:              []string{".bz2"},
 	X7zCompressArchive:                []string{".7z"},
