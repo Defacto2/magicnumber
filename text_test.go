@@ -473,3 +473,28 @@ func TestDumpCGAGraphics(t *testing.T) {
 	be.True(t, magicnumber.DumpCGAGraphics(btr))
 	be.Equal(t, magicnumber.Find(btr), magicnumber.CGAGraphicsDump)
 }
+
+func TestDumpSPICGA(t *testing.T) {
+	t.Parallel()
+
+	// 64 pairs of (0x55, 255) = 64 * 256 = 16,384 decoded bytes.
+	const pairs = 64
+	payload := make([]byte, 128+5+2*pairs)
+	payload[0] = 0xE9
+	copy(payload[128:], "SPI")
+	payload[128+3] = pairs
+	payload[128+4] = 0
+	for i := 0; i < pairs; i++ {
+		payload[128+5+2*i] = 0x55
+		payload[128+5+2*i+1] = 255
+	}
+	r := bytes.NewReader(payload)
+	be.True(t, magicnumber.DumpSPICGA(r))
+	got := magicnumber.Find(r)
+	be.Equal(t, got, magicnumber.SPICGADump)
+	be.Equal(t, got.Title(), "Software Pirates CGA RLE dump")
+
+	// Trailing extra byte breaks exact EOF match
+	bad := append(append([]byte{}, payload...), 0x00)
+	be.True(t, !magicnumber.DumpSPICGA(bytes.NewReader(bad)))
+}

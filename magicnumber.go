@@ -113,6 +113,7 @@ const (
 	LibraryUtility
 	CGAVideoDump
 	CGAGraphicsDump
+	SPICGADump
 	XBinaryText
 )
 
@@ -217,6 +218,7 @@ func (sign Signature) String() string { //nolint:funlen
 		"Library archive",
 		"CGA screen dump",
 		"CGA graphics dump",
+		"SPI CGA dump",
 		"XBIN binary text",
 	}[sign]
 }
@@ -308,6 +310,7 @@ func (sign Signature) Title() string { //nolint:funlen
 		"Library Utility archive",
 		"IBM CGA video RAM dump",
 		"IBM CGA graphics RAM dump",
+		"Software Pirates Inc CGA RLE dump",
 		"XBIN extended binary text",
 	}[sign]
 }
@@ -392,6 +395,7 @@ var extensions = Extension{
 	LibraryUtility:                    []string{".lbr"},
 	CGAVideoDump:                      []string{".bin", ".dat", ",.scr", ".tpg"},
 	CGAGraphicsDump:                   []string{".cga", ".bin", ".dat", ".scr"},
+	SPICGADump:                        []string{".com", ".spi"},
 	XBinaryText:                       []string{".xb", ".bin"},
 }
 
@@ -481,6 +485,7 @@ var finds = Finder{
 	LibraryUtility:                    LU,
 	CGAVideoDump:                      DumpCGA,
 	CGAGraphicsDump:                   DumpCGAGraphics,
+	SPICGADump:                        DumpSPICGA,
 	XBinaryText:                       XBin,
 }
 
@@ -559,6 +564,7 @@ func FindWithLogger(sl *slog.Logger, r io.ReaderAt) Signature {
 		ARChiveSEA,
 		CGAVideoDump,
 		CGAGraphicsDump,
+		SPICGADump,
 	}
 	for sign, matcher := range finds {
 		if slices.Contains(skip[:], sign) {
@@ -586,6 +592,9 @@ func FindWithLogger(sl *slog.Logger, r io.ReaderAt) Signature {
 
 	case DumpCGAGraphics(r): // checked before DumpCGA as 16384 is a multiple of 4096
 		sign = CGAGraphicsDump
+
+	case DumpSPICGA(r):
+		sign = SPICGADump
 
 	case DumpCGA(r): // causes false positives with CDISO etc.
 		sign = CGAVideoDump

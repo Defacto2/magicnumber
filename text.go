@@ -1060,3 +1060,55 @@ func hasNonZeroByte(b []byte) bool {
 func isAllZero(b []byte) bool {
 	return !hasNonZeroByte(b)
 }
+
+// DumpSPICGA detects Software Pirates, Inc. DOS .COM loaders containing an embedded "SPI"
+// RLE-compressed CGA graphics stream ("SPI" + uint16 pairCount + pairCount * [val, repeatMinus1]).
+func DumpSPICGA(r io.ReaderAt) bool {
+	if r == nil {
+		return false
+	}
+
+	const (
+		comMaxSize    = 65536
+		minDecodedLen = 16000
+		maxDecodedLen = 16384
+		headerLen     = 5 // "SPI" + uint16 pairCount
+	)
+
+	size := Length(r)
+	if size < headerLen || size > comMaxSize {
+		return false
+	}
+
+	buf := make([]byte, size)
+	if n, err := r.ReadAt(buf, 0); (err != nil && err != io.EOF) || int64(n) < size {
+		return false
+	}
+
+	// Must start with a DOS .COM jump (0xE9/0xEB) or directly with "SPI".
+	if buf[0] != 0xE9 && buf[0] != 0xEB && !bytes.HasPrefix(buf, []byte("SPI")) {
+		return false
+	}
+
+	searchFrom := 0
+	for {
+		rel := bytes.Index(buf[searchFrom:], []byte("SPI"))
+		if rel < 0 {
+			return false
+		}
+		idx := searchFrom + rel
+		if idx+headerLen <= len(buf) {
+			pairCount := int(uint16(buf[idx+3]) | uint16(buf[idx+4])<<8)
+			if idx+headerLen+2*pairCount == len(buf) {
+				decodedLen := 0
+				for pos := idx + headerLen; pos < len(buf); pos += 2 {
+					decodedLen += int(buf[pos+1]) + 1
+				}
+				if decodedLen >= minDecodedLen && decodedLen <= maxDecodedLen {
+					return true
+				}
+			}
+		}
+		searchFrom = idx + 1
+	}
+}
