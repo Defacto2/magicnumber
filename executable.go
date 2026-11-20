@@ -4,6 +4,7 @@ package magicnumber
 // Package file executable.go contains the functions that parse Microsoft and IBM system executable files.
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -17,12 +18,39 @@ func Pklite(r io.ReaderAt) bool {
 		return false
 	}
 
-	var p [6]byte
-	const off = 30
-	if n, err := r.ReadAt(p[:], off); (err != nil && err != io.EOF) || n < 6 {
+	// The PKLITE signature is at offset 30 in EXE files,
+	// and at offset 46 in COM files.
+	for _, off := range [...]int64{30, 46} {
+		var p [6]byte
+		if n, err := r.ReadAt(p[:], off); (err != nil && err != io.EOF) || n < 6 {
+			continue
+		}
+		if p == [6]byte{'P', 'K', 'L', 'I', 'T', 'E'} {
+			return true
+		}
+	}
+	return false
+}
+
+// TheDraw matches a .COM screen save created by [TheDraw],
+// a popular BBS era text drawing program.
+// These .COM files are small executables for Microsoft DOS
+// that display a screen and contain the
+// "TheDraw COM file Screen Save" text after a short jump instruction.
+//
+// [TheDraw]: https://winworldpc.com/product/the-draw/3x
+func TheDraw(r io.ReaderAt) bool {
+	if r == nil {
 		return false
 	}
-	return p == [6]byte{'P', 'K', 'L', 'I', 'T', 'E'}
+
+	const off = 9
+	sig := []byte("TheDraw COM file Screen Save")
+	p := make([]byte, len(sig))
+	if n, err := r.ReadAt(p, off); (err != nil && err != io.EOF) || n < len(sig) {
+		return false
+	}
+	return bytes.Equal(p, sig)
 }
 
 // Pksfx matches the PKSFX archive format in the byte slice which is a

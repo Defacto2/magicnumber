@@ -2,6 +2,7 @@
 package magicnumber_test
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -199,4 +200,21 @@ func TestFindExecutableWin9x(t *testing.T) {
 	be.Equal(t, 2016, got.TimeDateStamp.Year(), 2016)
 	be.Equal(t, fmt.Sprint(got), "Windows NT v4.0 64-bit")
 	be.Equal(t, got.NE, magicnumber.NoneNE)
+}
+
+func TestPkliteTheDrawCOM(t *testing.T) {
+	t.Parallel()
+
+	pk := make([]byte, 64)
+	copy(pk[46:], "PKLITE Copr.")
+	be.True(t, magicnumber.Pklite(bytes.NewReader(pk)))
+	be.True(t, !magicnumber.Pklite(bytes.NewReader(make([]byte, 64))))
+
+	td := make([]byte, 128)
+	td[0], td[1] = 0xEB, 0x3D
+	copy(td[9:], "TheDraw COM file Screen Save")
+	r := bytes.NewReader(td)
+	be.True(t, magicnumber.TheDraw(r))
+	be.Equal(t, magicnumber.Find(r), magicnumber.TheDrawCOM)
+	be.True(t, !magicnumber.TheDraw(nil))
 }

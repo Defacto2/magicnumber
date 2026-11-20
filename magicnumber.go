@@ -114,6 +114,7 @@ const (
 	CGAVideoDump
 	CGAGraphicsDump
 	SPICGADump
+	TheDrawCOM
 	XBinaryText
 )
 
@@ -125,6 +126,7 @@ const LastSignature = XBinaryText
 const (
 	mpeg4video = "MPEG-4 video"
 	bbin       = ".bin"
+	ccom       = ".com"
 	eexe       = ".exe"
 	iiff       = ".iff"
 	rrar       = ".rar"
@@ -220,6 +222,7 @@ func (sign Signature) String() string { //nolint:funlen
 		"CGA screen dump",
 		"CGA graphics dump",
 		"SPI CGA dump",
+		"TheDraw COM screen",
 		"XBIN binary text",
 	}[sign]
 }
@@ -312,6 +315,7 @@ func (sign Signature) Title() string { //nolint:funlen
 		"IBM CGA video RAM dump",
 		"IBM CGA graphics RAM dump",
 		"Software Pirates Inc CGA RLE dump",
+		"TheDraw COM file screen save",
 		"XBIN extended binary text",
 	}[sign]
 }
@@ -374,7 +378,7 @@ var extensions = Extension{
 	ZooArchive:                        []string{".zoo"},
 	ArchiveRobertJung:                 []string{".arj"},
 	MicrosoftCABinet:                  []string{".cab"},
-	MicrosoftDOSKWAJ:                  []string{".com"},
+	MicrosoftDOSKWAJ:                  []string{ccom},
 	MicrosoftDOSSZDD:                  []string{eexe},
 	MicrosoftExecutable:               []string{eexe},
 	MicrosoftCompoundFile:             []string{eexe},
@@ -396,7 +400,8 @@ var extensions = Extension{
 	LibraryUtility:                    []string{".lbr"},
 	CGAVideoDump:                      []string{bbin, ".dat", ",.scr", ".tpg"},
 	CGAGraphicsDump:                   []string{".cga", bbin, ".dat", ".scr"},
-	SPICGADump:                        []string{".com", ".spi"},
+	SPICGADump:                        []string{ccom, ".spi"},
+	TheDrawCOM:                        []string{ccom},
 	XBinaryText:                       []string{".xb", bbin},
 }
 
@@ -487,6 +492,7 @@ var finds = Finder{
 	CGAVideoDump:                      DumpCGA,
 	CGAGraphicsDump:                   DumpCGAGraphics,
 	SPICGADump:                        DumpSPICGA,
+	TheDrawCOM:                        TheDraw,
 	XBinaryText:                       XBin,
 }
 
