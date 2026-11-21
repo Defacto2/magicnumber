@@ -3,6 +3,7 @@ package magicnumber_test
 
 import (
 	"bytes"
+	"encoding/binary"
 	"log/slog"
 	"os"
 	"strings"
@@ -192,6 +193,97 @@ func TestTextCSI(t *testing.T) {
 	cr := bytes.NewReader(boundary)
 	be.True(t, magicnumber.CSI(cr))
 	be.Equal(t, magicnumber.Find(cr), magicnumber.ANSIEscapeText)
+}
+
+func TestBinaryText(t *testing.T) {
+	t.Parallel()
+
+	be.True(t, !magicnumber.BinaryText(nil))
+
+	makeSAUCE := func(fileSize uint32, dataType, fileType, comments byte) []byte {
+		s := make([]byte, 128)
+		copy(s[:7], "SAUCE00")
+		binary.LittleEndian.PutUint32(s[90:94], fileSize)
+		s[94] = dataType
+		s[95] = fileType
+		s[104] = comments
+		return s
+	}
+
+	// Space-filled 160x25 BinaryText (8,000 B) + 0x1A + SAUCE must match SAUCEBinaryText, not PlainText.
+	payload := bytes.Repeat([]byte{' ', 0x07}, 4000)
+	bin := append(append([]byte{}, payload...), 0x1A)
+	bin = append(bin, makeSAUCE(uint32(len(payload)), 5, 80, 0)...)
+	r := bytes.NewReader(bin)
+	be.True(t, magicnumber.BinaryText(r))
+	be.Equal(t, magicnumber.Find(r), magicnumber.SAUCEBinaryText)
+	be.Equal(t, magicnumber.SAUCEBinaryText.String(), "SAUCE binary text")
+	be.Equal(t, magicnumber.SAUCEBinaryText.Title(), "SAUCE binary text")
+
+	// 320-col BinaryText with COMNT block and FileSize=0.
+	wide := make([]byte, 320*2*2)
+	for i := 0; i < len(wide); i += 2 {
+		wide[i] = 0xDB
+		wide[i+1] = 0x4C
+	}
+	comnt := make([]byte, 5+64)
+	copy(comnt[:5], "COMNT")
+	wideWithComnt := append(append([]byte{}, wide...), 0x1A)
+	wideWithComnt = append(wideWithComnt, comnt...)
+	wideWithComnt = append(wideWithComnt, makeSAUCE(0, 5, 160, 1)...)
+	be.Equal(t, magicnumber.Find(bytes.NewReader(wideWithComnt)), magicnumber.SAUCEBinaryText)
+
+	// Non-BinaryText DataType (e.g. Character=1) must not match.
+	charSAUCE := append(append([]byte{}, payload...), 0x1A)
+	charSAUCE = append(charSAUCE, makeSAUCE(uint32(len(payload)), 1, 1, 0)...)
+	be.True(t, !magicnumber.BinaryText(bytes.NewReader(charSAUCE)))
+}
+
+func TestIceDraw(t *testing.T) {
+	t.Parallel()
+
+	be.True(t, !magicnumber.IceDraw(nil))
+
+	makeIDF := func(x1, y1, x2, y2 uint16, palByte byte) []byte {
+		const (
+			hdrLen  = 12
+			bodyLen = 100
+			fontLen = 4096
+			palLen  = 48
+		)
+		b := make([]byte, hdrLen+bodyLen+fontLen+palLen)
+		copy(b[:4], "\x041.4")
+		binary.LittleEndian.PutUint16(b[4:6], x1)
+		binary.LittleEndian.PutUint16(b[6:8], y1)
+		binary.LittleEndian.PutUint16(b[8:10], x2)
+		binary.LittleEndian.PutUint16(b[10:12], y2)
+		for i := hdrLen + bodyLen + fontLen; i < len(b); i++ {
+			b[i] = palByte
+		}
+		return b
+	}
+
+	idf := makeIDF(0, 0, 79, 21, 0x3F)
+	r := bytes.NewReader(idf)
+	be.True(t, magicnumber.IceDraw(r))
+	be.Equal(t, magicnumber.Find(r), magicnumber.ICEDraw)
+	be.Equal(t, magicnumber.ICEDraw.String(), "iCEDraw binary text")
+	be.Equal(t, magicnumber.ICEDraw.Title(), "iCEDraw binary text")
+
+	// IDF with trailing SAUCE record.
+	sauce := make([]byte, 128)
+	copy(sauce[:7], "SAUCE00")
+	binary.LittleEndian.PutUint32(sauce[90:94], uint32(len(idf)))
+	sauce[94] = 1
+	sauce[95] = 5
+	idfSauce := append(append([]byte{}, idf...), 0x1A)
+	idfSauce = append(idfSauce, sauce...)
+	be.Equal(t, magicnumber.Find(bytes.NewReader(idfSauce)), magicnumber.ICEDraw)
+
+	// Invalid bounds (x1 > x2) or palette entry > 0x3F must not match.
+	be.True(t, !magicnumber.IceDraw(bytes.NewReader(makeIDF(80, 0, 79, 21, 0x3F))))
+	be.True(t, !magicnumber.IceDraw(bytes.NewReader(makeIDF(0, 0, 79, 21, 0x40))))
+	be.True(t, !magicnumber.IceDraw(bytes.NewReader([]byte("\x041.4short"))))
 }
 
 func TestTextRTF(t *testing.T) {

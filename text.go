@@ -6,6 +6,7 @@ package magicnumber
 import (
 	"bufio"
 	"bytes"
+	"encoding/binary"
 	"io"
 	"log/slog"
 )
@@ -742,6 +743,134 @@ func XBin(r io.ReaderAt) bool {
 		return false
 	}
 	return p == [5]byte{'X', 'B', 'I', 'N', 0x1a}
+}
+
+// BinaryText matches raw DOS text-mode character/attribute dumps tagged with a
+// SAUCE00 record declaring DataType 5 (BinaryText) and a non-zero FileType width.
+func BinaryText(r io.ReaderAt) bool {
+	if r == nil {
+		return false
+	}
+
+	sauce, payloadEnd, strippedEOF, ok := saucePayloadEnd(r, Length(r))
+	if !ok {
+		return false
+	}
+
+	const (
+		fileSizeOff     = 90
+		dataTypeOff     = 94
+		fileTypeOff     = 95
+		sauceBinaryText = 5
+	)
+	if sauce[dataTypeOff] != sauceBinaryText || sauce[fileTypeOff] == 0 {
+		return false
+	}
+
+	fileSize := int64(binary.LittleEndian.Uint32(sauce[fileSizeOff : fileSizeOff+4]))
+	if fileSize > 0 {
+		return fileSize%2 == 0 && (fileSize == payloadEnd || (strippedEOF && fileSize == payloadEnd+1))
+	}
+	return payloadEnd >= 2 && payloadEnd%2 == 0
+}
+
+// IceDraw matches iCEDraw v1.4 (.IDF) files, validating the "\x041.4" header,
+// bounding coordinates, minimum font+palette payload length, and 6-bit VGA palette.
+func IceDraw(r io.ReaderAt) bool {
+	if r == nil {
+		return false
+	}
+
+	const (
+		headerLen     = 12
+		fontLen       = 4096
+		paletteLen    = 48
+		minLen        = headerLen + fontLen + paletteLen
+		maxPaletteVal = 0x3F
+	)
+
+	var hdr [headerLen]byte
+	if n, err := r.ReadAt(hdr[:], 0); (err != nil && err != io.EOF) || n < headerLen {
+		return false
+	}
+	if string(hdr[:4]) != "\x041.4" {
+		return false
+	}
+
+	x1 := binary.LittleEndian.Uint16(hdr[4:6])
+	y1 := binary.LittleEndian.Uint16(hdr[6:8])
+	x2 := binary.LittleEndian.Uint16(hdr[8:10])
+	y2 := binary.LittleEndian.Uint16(hdr[10:12])
+	if x1 > x2 || y1 > y2 {
+		return false
+	}
+
+	size := Length(r)
+	payloadEnd := size
+	if _, end, _, ok := saucePayloadEnd(r, size); ok {
+		payloadEnd = end
+	}
+	if payloadEnd < minLen {
+		return false
+	}
+
+	var pal [paletteLen]byte
+	if n, err := r.ReadAt(pal[:], payloadEnd-paletteLen); (err != nil && err != io.EOF) || n < paletteLen {
+		return false
+	}
+	for _, b := range pal {
+		if b > maxPaletteVal {
+			return false
+		}
+	}
+	return true
+}
+
+func saucePayloadEnd(r io.ReaderAt, size int64) ([128]byte, int64, bool, bool) {
+	const (
+		sauceLen    = 128
+		comntHeader = 5
+		comntLine   = 64
+		commentsOff = 104
+		eofByte     = 0x1A
+	)
+
+	var sauce [sauceLen]byte
+	if size < sauceLen {
+		return sauce, 0, false, false
+	}
+	if n, err := r.ReadAt(sauce[:], size-sauceLen); (err != nil && err != io.EOF) || n < sauceLen {
+		return sauce, 0, false, false
+	}
+	if string(sauce[:7]) != "SAUCE00" {
+		return sauce, 0, false, false
+	}
+
+	dataEnd := size - sauceLen
+	if comments := int64(sauce[commentsOff]); comments > 0 {
+		comntLen := int64(comntHeader) + int64(comntLine)*comments
+		if dataEnd < comntLen {
+			return sauce, 0, false, false
+		}
+		var comnt [comntHeader]byte
+		if n, err := r.ReadAt(comnt[:], dataEnd-comntLen); (err != nil && err != io.EOF) || n < comntHeader {
+			return sauce, 0, false, false
+		}
+		if string(comnt[:]) != "COMNT" {
+			return sauce, 0, false, false
+		}
+		dataEnd -= comntLen
+	}
+
+	strippedEOF := false
+	if dataEnd > 0 {
+		var eof [1]byte
+		if n, err := r.ReadAt(eof[:], dataEnd-1); (err == nil || err == io.EOF) && n == 1 && eof[0] == eofByte {
+			dataEnd--
+			strippedEOF = true
+		}
+	}
+	return sauce, dataEnd, strippedEOF, true
 }
 
 // DumpCGA uses heuristics to discover 4-bit, RGBI Video RAM screen dumps

@@ -115,6 +115,8 @@ const (
 	CGAGraphicsDump
 	SPICGADump
 	TheDrawCOM
+	SAUCEBinaryText
+	ICEDraw
 	XBinaryText
 )
 
@@ -223,6 +225,8 @@ func (sign Signature) String() string { //nolint:funlen
 		"CGA graphics dump",
 		"SPI CGA dump",
 		"TheDraw COM screen",
+		"SAUCE binary text",
+		"iCEDraw binary text",
 		"XBIN binary text",
 	}[sign]
 }
@@ -316,6 +320,8 @@ func (sign Signature) Title() string { //nolint:funlen
 		"IBM CGA graphics RAM dump",
 		"Software Pirates Inc CGA RLE dump",
 		"TheDraw COM file screen save",
+		"SAUCE binary text",
+		"iCEDraw binary text",
 		"XBIN extended binary text",
 	}[sign]
 }
@@ -402,6 +408,8 @@ var extensions = Extension{
 	CGAGraphicsDump:                   []string{".cga", bbin, ".dat", ".scr"},
 	SPICGADump:                        []string{ccom, ".spi"},
 	TheDrawCOM:                        []string{ccom},
+	SAUCEBinaryText:                   []string{bbin},
+	ICEDraw:                           []string{".idf"},
 	XBinaryText:                       []string{".xb", bbin},
 }
 
@@ -493,6 +501,8 @@ var finds = Finder{
 	CGAGraphicsDump:                   DumpCGAGraphics,
 	SPICGADump:                        DumpSPICGA,
 	TheDrawCOM:                        TheDraw,
+	SAUCEBinaryText:                   BinaryText,
+	ICEDraw:                           IceDraw,
 	XBinaryText:                       XBin,
 }
 
@@ -572,6 +582,7 @@ func FindWithLogger(sl *slog.Logger, r io.ReaderAt) Signature {
 		CGAVideoDump,
 		CGAGraphicsDump,
 		SPICGADump,
+		SAUCEBinaryText,
 	}
 	for sign, matcher := range finds {
 		if slices.Contains(skip[:], sign) {
@@ -601,6 +612,7 @@ func findOrdered(sl *slog.Logger, r io.ReaderAt) Signature {
 		{CGAGraphicsDump, func() bool { return DumpCGAGraphics(r) }},   // before DumpCGA (16384 is a multiple of 4096)
 		{SPICGADump, func() bool { return DumpSPICGA(r) }},             //
 		{CGAVideoDump, func() bool { return DumpCGA(r) }},              // causes false positives with CDISO etc.
+		{SAUCEBinaryText, func() bool { return BinaryText(r) }},        // before PlainText so space-filled .BIN != match
 		{PlainText, func() bool { return CodePageWithLogger(sl, r) }},  //
 		{PlainText, func() bool { return Txt(r) }},                     //
 		{XBinaryText, func() bool { return XBin(r) }},                  //
