@@ -284,17 +284,22 @@ func CSI(r io.ReaderAt) bool {
 		return false
 	}
 
-	const chunkSize = 1024
-	p := make([]byte, chunkSize)
-
-	finds := 0
-	var off int64
+	const (
+		chunkSize   = 1024
+		maxTail     = 2
+		minRequired = 3
+		common      = `0123456789mHJK?=suABCD#`
+	)
 
 	// track up to 2 trailing bytes from the previous chunk to detect boundary-straddling CSI sequences
-	var tail [2]byte
-	tails := 0
+	var buf [maxTail + chunkSize]byte
+	var tail [maxTail]byte
+	p := buf[maxTail:]
 
-	const minRequired = 3
+	finds := 0
+	tails := 0
+	var off int64
+
 	for {
 		n, err := r.ReadAt(p, off)
 		if err != nil && err != io.EOF {
@@ -304,34 +309,31 @@ func CSI(r io.ReaderAt) bool {
 			break
 		}
 
-		// prepare a search slice that includes overlap from the previous chunk
-		var searchBuf []byte
+		// prepare a contiguous search slice that includes overlap from the previous chunk without allocating
+		start := maxTail - tails
 		if tails > 0 {
-			searchBuf = append(tail[:tails], p[:n]...)
-		} else {
-			searchBuf = p[:n]
+			copy(buf[start:maxTail], tail[:tails])
 		}
+		searchBuf := buf[start : maxTail+n]
 
 		// count occurrences of CSI codes (\x1b[ + char) in this chunk
-		// common is a list of ANSI CSI termination/parameter characters
-		const common = `0123456789JK=su#`
-		for _, c := range []byte(common) {
-			pattern := [3]byte{esc, '[', c}
-			finds += bytes.Count(searchBuf, pattern[:])
-			if finds >= minRequired {
-				return true
+		if bytes.IndexByte(searchBuf, esc) != -1 {
+			for _, c := range []byte(common) {
+				pattern := [3]byte{esc, '[', c}
+				finds += bytes.Count(searchBuf, pattern[:])
+				if finds >= minRequired {
+					return true
+				}
 			}
 		}
 
-		// save the last 2 bytes for the next boundary check
-		const last2 = 2
-		if n >= last2 {
-			tail[0] = p[n-2]
-			tail[1] = p[n-1]
-			tails = 2
-		} else if n == 1 {
-			tail[0] = p[n-1]
-			tails = 1
+		// save up to the last 2 bytes for the next boundary check
+		if len(searchBuf) >= maxTail {
+			copy(tail[:], searchBuf[len(searchBuf)-maxTail:])
+			tails = maxTail
+		} else {
+			copy(tail[:], searchBuf)
+			tails = len(searchBuf)
 		}
 
 		off += int64(n)

@@ -607,6 +607,9 @@ func findOrdered(sl *slog.Logger, r io.ReaderAt) Signature {
 	}
 	for _, entry := range ordered {
 		if entry.match() {
+			if entry.sign == PlainText && CSI(r) {
+				return ANSIEscapeText
+			}
 			return entry.sign
 		}
 	}

@@ -73,10 +73,10 @@ func Document(r io.ReaderAt) (Signature, error) {
 	case Ansi(r):
 		return ANSIEscapeText, nil
 
-	case CodePage(r):
-		return PlainText, nil
-
-	case Txt(r):
+	case CodePage(r), Txt(r):
+		if CSI(r) {
+			return ANSIEscapeText, nil
+		}
 		return PlainText, nil
 
 	default:
@@ -165,10 +165,10 @@ func TextWithLogger(sl *slog.Logger, r io.ReaderAt) (Signature, error) {
 	case AnsiWithLogger(sl, r):
 		return ANSIEscapeText, nil
 
-	case CodePageWithLogger(sl, r):
-		return PlainText, nil
-
-	case TxtWithLogger(sl, r):
+	case CodePageWithLogger(sl, r), TxtWithLogger(sl, r):
+		if CSI(r) {
+			return ANSIEscapeText, nil
+		}
 		return PlainText, nil
 
 	default:

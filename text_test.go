@@ -156,6 +156,42 @@ func TestTextCSI(t *testing.T) {
 	s = "ANSI \x1btext"
 	nr = strings.NewReader(s)
 	be.True(t, !magicnumber.CSI(nr))
+
+	// Single-parameter SGR codes (no \x1b[0m, \x1b[2J, \x1b[1;, or \x1b[0;)
+	// should still be detected as ANSIEscapeText by Find, Text, and Document.
+	for _, sample := range []string{
+		"\x1b[45m \n\x1b[40m \x1b[36m* \x1b[37mHello \x1b[33mWorld\n",
+		"\x1b[1m   \x1b[22mTitle \x1b[37mLine \x1b[31mRed \x1b[33mYellow\n",
+		"\x1b[H\x1b[mHello\x1b[?7hWorld\n",
+	} {
+		sr := strings.NewReader(sample)
+		be.True(t, !magicnumber.Ansi(sr))
+		be.True(t, magicnumber.CSI(sr))
+		be.Equal(t, magicnumber.Find(sr), magicnumber.ANSIEscapeText)
+		sign, err = magicnumber.Text(sr)
+		be.Err(t, err, nil)
+		be.Equal(t, sign, magicnumber.ANSIEscapeText)
+		sign, err = magicnumber.Document(sr)
+		be.Err(t, err, nil)
+		be.Equal(t, sign, magicnumber.ANSIEscapeText)
+	}
+
+	// Binary data with incidental CSI byte sequences must not match ANSIEscapeText.
+	bin := append([]byte("\x1b[1m\x1b[2m\x1b[3m"), bytes.Repeat([]byte{0x00, 0x00, 0x01, 0x02}, 64)...)
+	br := bytes.NewReader(bin)
+	be.True(t, magicnumber.CSI(br))
+	be.Equal(t, magicnumber.Find(br), magicnumber.Unknown)
+
+	// CSI sequences straddling the 1024-byte chunk boundary must still be detected.
+	boundary := bytes.Repeat([]byte{'A'}, 1023)
+	boundary = append(boundary, []byte("\x1b[45m")...)
+	boundary = append(boundary, bytes.Repeat([]byte{'B'}, 1018)...)
+	boundary = append(boundary, []byte("\x1b[36m")...)
+	boundary = append(boundary, bytes.Repeat([]byte{'C'}, 1019)...)
+	boundary = append(boundary, []byte("\x1b[37m\n")...)
+	cr := bytes.NewReader(boundary)
+	be.True(t, magicnumber.CSI(cr))
+	be.Equal(t, magicnumber.Find(cr), magicnumber.ANSIEscapeText)
 }
 
 func TestTextRTF(t *testing.T) {
